@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block content %}
+        <h1>Hi, {{ current_user.username }}!</h1>
+        {% for event in events %}
+        <div><p>{{ event.source.username }} posted: <b>{{ event.title }}</b></p></div>
+        {% endfor %}
+{% endblock %}
