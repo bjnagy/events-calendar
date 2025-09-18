@@ -83,9 +83,13 @@ class User(UserMixin, db.Model):
         Follower = so.aliased(User)
         return (
             sa.select(Event)
-            .join(Event.source.of_type(Source))
-            .join(Source.followers.of_type(Follower))
-            .where(Follower.id == self.id)
+            .join(Event.author.of_type(Source))
+            .join(Source.followers.of_type(Follower), isouter=True)
+            .where(sa.or_(
+                Follower.id == self.id,
+                Source.id == self.id,
+            ))
+            .group_by(Event)
             .order_by(Event.timestamp.desc())
         )
     
