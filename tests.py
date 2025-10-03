@@ -95,6 +95,56 @@ class UserModelCase(unittest.TestCase):
         self.assertEqual(f3, [p3, p4])
         self.assertEqual(f4, [p4])
 
+class EventModelCase(unittest.TestCase):
+    def setUp(self):
+        self.app_context = app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    #WIP
+
+    def test_create_events(self):
+        #start date, no time, no end date
+        #start date, no time, end date, no end time
+        #start date, no time, end date, end time
+        #start date, time, no end date, no end time
+        #start date, time, end date, no end time
+        #start date, time, end date, end time
+        #no start date, no time, no end date, no end time
+        #no start date, time, no end date, no end time
+        #no start date, no time, end date, no end time
+        #no start date, no time, no end date, end time
+        #no start date, no time, end date, end time
+        return
+
+    def test_add_to_collection(self):
+        return
+    
+    def test_remove_from_collection(self):
+        return
+    
+class CollectionModelCase(unittest.TestCase):
+    def setUp(self):
+        self.app_context = app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    #WIP
+    def test_add_event(self):
+        return
+    
+    def test_remove_event(self):
+        return
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

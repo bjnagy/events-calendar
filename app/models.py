@@ -20,6 +20,15 @@ followers = sa.Table(
               primary_key=True)
 )
 
+collections = sa.Table(
+    'collections',
+    db.metadata,
+    sa.Column('collection_id', sa.Integer, sa.ForeignKey('collection.id'),
+              primary_key=True),
+    sa.Column('event_id', sa.Integer, sa.ForeignKey('event.id'),
+              primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
@@ -32,7 +41,10 @@ class User(UserMixin, db.Model):
         default=lambda: datetime.now(timezone.utc))
 
     events: so.WriteOnlyMapped['Event'] = so.relationship(
-        back_populates='source')
+        back_populates='source_user')
+    
+    collections: so.WriteOnlyMapped['Collection'] = so.relationship(
+        back_populates='owner')
     
     following: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.follower_id == id),
@@ -93,15 +105,67 @@ class User(UserMixin, db.Model):
             .order_by(Event.timestamp.desc())
         )
     
+
+    def __repr__(self):
+        return '<Event {}>'.format(self.title)
+    
 class Event(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
+    description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    start_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=False)
+    start_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
+    end_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=True)
+    end_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
                                                index=True)
+    source_user: so.Mapped[User] = so.relationship(back_populates='events')
 
-    source: so.Mapped[User] = so.relationship(back_populates='events')
+    in_collection: so.WriteOnlyMapped['Event'] = so.relationship(
+        secondary=collections, primaryjoin=(collections.c.event_id == id),
+        secondaryjoin=("collections.c.collection_id == Collection.id"),
+        back_populates='in_collection')
+    
+    def add_to_collection(self, collection):
+        if not self.is_in_collection(collection):
+            self.in_collection.add(collection)
+
+    def remove_from_collection(self, collection):
+        if self.is_in_collection(collection):
+            self.in_collection.remove(collection)
+
+    def is_in_collection(self, collection):
+        query = self.in_collection.select().where(Collection.id == collection.id)
+        return db.session.scalar(query) is not None
+    
+class Collection(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    title: so.Mapped[str] = so.mapped_column(sa.String(140))
+    description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    timestamp: so.Mapped[datetime] = so.mapped_column(
+        index=True, default=lambda: datetime.now(timezone.utc))
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
+                                               index=True)
+    owner: so.Mapped[User] = so.relationship(back_populates='collections')
+
+    events: so.WriteOnlyMapped['Collection'] = so.relationship(
+        secondary=collections, primaryjoin=(collections.c.collection_id == id),
+        secondaryjoin=("collections.c.event_id == Event.id"),
+        back_populates='in_collection')
+    
+    def add_event(self, event):
+        if not self.contains_event(event):
+            self.events.add(event)
+
+    def remove_event(self, event):
+        if self.contains_event(event):
+            self.events.remove(event)
+
+    def contains_event(self, event):
+        query = self.events.select().where(Event.id == event.id)
+        return db.session.scalar(query) is not None
 
     def __repr__(self):
-        return '<Event {}>'.format(self.body)
+        return '<Collection {}>'.format(self.title)
