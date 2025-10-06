@@ -1,9 +1,10 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, DateField, TimeField
+from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length, Optional
 import sqlalchemy as sa
 from app import db
 from app.models import User
+import datetime
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -49,3 +50,18 @@ class EditProfileForm(FlaskForm):
             
 class EmptyForm(FlaskForm):
     submit = SubmitField('Submit')
+
+class EventForm(FlaskForm):
+    title = TextAreaField('Title of event', validators=[
+        DataRequired(), Length(min=1, max=140)])
+    description = TextAreaField('Description of event', validators=[
+        DataRequired(), Length(min=0)])
+    start_date = DateField("Start Date", format='%Y-%m-%d', default=datetime.datetime.now(), validators=[DataRequired()])
+    start_time = TimeField("Start time", format='%H:%M', validators=[Optional()])
+    end_date = DateField("End Date", format='%Y-%m-%d', validators=[Optional()])
+    end_time = TimeField("End time", format='%H:%M', validators=[Optional()])
+    submit = SubmitField('Submit')
+
+    def validate_end_time(self, field):
+        if not self.end_date.data and field.data:
+            raise ValidationError('You cannot specify an end time without an end date')

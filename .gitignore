@@ -1,0 +1,9 @@
+test/
+.venv/
+credentials*
+certs/
+*.db
+ORIGINAL/
+**/__pycache__/
+config.py
+logs/

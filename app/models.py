@@ -41,7 +41,7 @@ class User(UserMixin, db.Model):
         default=lambda: datetime.now(timezone.utc))
 
     events: so.WriteOnlyMapped['Event'] = so.relationship(
-        back_populates='source_user')
+        back_populates='author')
     
     collections: so.WriteOnlyMapped['Collection'] = so.relationship(
         back_populates='owner')
@@ -90,7 +90,7 @@ class User(UserMixin, db.Model):
             self.following.select().subquery())
         return db.session.scalar(query)
     
-    def following_posts(self):
+    def following_events(self):
         Source = so.aliased(User)
         Follower = so.aliased(User)
         return (
@@ -121,12 +121,13 @@ class Event(db.Model):
         index=True, default=lambda: datetime.now(timezone.utc))
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
                                                index=True)
-    source_user: so.Mapped[User] = so.relationship(back_populates='events')
+    author: so.Mapped[User] = so.relationship(back_populates='events')
 
-    in_collection: so.WriteOnlyMapped['Event'] = so.relationship(
-        secondary=collections, primaryjoin=(collections.c.event_id == id),
+    in_collection: so.WriteOnlyMapped['Collection'] = so.relationship(
+        secondary=collections, 
+        primaryjoin=("collections.c.event_id == Event.id"),
         secondaryjoin=("collections.c.collection_id == Collection.id"),
-        back_populates='in_collection')
+        back_populates='events')
     
     def add_to_collection(self, collection):
         if not self.is_in_collection(collection):
@@ -140,6 +141,9 @@ class Event(db.Model):
         query = self.in_collection.select().where(Collection.id == collection.id)
         return db.session.scalar(query) is not None
     
+    def __repr__(self):
+        return '<Event {}>'.format(self.title)
+    
 class Collection(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
@@ -150,8 +154,9 @@ class Collection(db.Model):
                                                index=True)
     owner: so.Mapped[User] = so.relationship(back_populates='collections')
 
-    events: so.WriteOnlyMapped['Collection'] = so.relationship(
-        secondary=collections, primaryjoin=(collections.c.collection_id == id),
+    events: so.WriteOnlyMapped['Event'] = so.relationship(
+        secondary=collections, 
+        primaryjoin=("collections.c.collection_id == Collection.id"),
         secondaryjoin=("collections.c.event_id == Event.id"),
         back_populates='in_collection')
     

@@ -1,6 +1,26 @@
     <table>
         <tr valign="top">
-            <td><img src="{{ event.source.avatar(36) }}"></td>
-            <td>{{ event.source.username }} says:<br>{{ event.title }}</td>
+            <td><img src="{{ event.author.avatar(36) }}"></td>
+            <td>
+                <a href="{{ url_for('user', username=event.author.username) }}">
+                    {{ event.author.username }}
+                </a>
+                posted:<br>{{ event.title }}
+            </td>
+            <td>{{ event.author.description }}</td>
+            <td>
+                Starts: <b>{{ event.start_date }} 
+                    {% if event.start_time %}
+                    {{ event.start_time.strftime("%I:%M %p") }}
+                    {% endif %}</b>
+            </td>
+            <td>
+                {% if not event.end_date is none %}
+                Ends: <b>{{ event.end_date }}
+                {% endif %}
+                {% if not event.end_time is none %}
+                {{ event.end_time.strftime("%I:%M %p") }}
+                {% endif %}</b>
+            </td>
         </tr>
     </table>
