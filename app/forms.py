@@ -65,3 +65,13 @@ class EventForm(FlaskForm):
     def validate_end_time(self, field):
         if not self.end_date.data and field.data:
             raise ValidationError('You cannot specify an end time without an end date')
+        
+class ResetPasswordRequestForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('Password', validators=[DataRequired()])
+    password2 = PasswordField(
+        'Repeat Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Request Password Reset')
