@@ -27,8 +27,16 @@ def index():
         db.session.commit()
         flash('Your event is now live!')
         return redirect(url_for('index'))
-    events = db.session.scalars(current_user.following_events()).all()
-    return render_template('index.html', title='Home', form=form, events=events)
+    page = request.args.get('page', 1, type=int)
+    events = db.paginate(current_user.following_events(), page=page,
+                        per_page=app.config['POSTS_PER_PAGE'], error_out=False)
+    next_url = url_for('index', page=events.next_num) \
+            if events.has_next else None
+    prev_url = url_for('index', page=events.prev_num) \
+        if events.has_prev else None
+    return render_template('index.html', title='Home', form=form,
+                        events=events.items, next_url=next_url,
+                        prev_url=prev_url)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -75,13 +83,18 @@ def register():
 @login_required
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
-    
-    events = [
-        {'author': user, 'title': 'Test event #1'},
-        {'author': user, 'title': 'Test event #2'}
-    ]
+    page = request.args.get('page', 1, type=int)
+    query = user.events.select().order_by(Event.timestamp.desc())
+    events = db.paginate(query, page=page,
+                        per_page=app.config['POSTS_PER_PAGE'],
+                        error_out=False)
+    next_url = url_for('user', username=user.username, page=events.next_num) \
+        if events.has_next else None
+    prev_url = url_for('user', username=user.username, page=events.prev_num) \
+        if events.has_prev else None
     form = EmptyForm()
-    return render_template('user.html', user=user, events=events, form=form)
+    return render_template('user.html', user=user, events=events.items,
+                           next_url=next_url, prev_url=prev_url, form=form)
 
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
@@ -145,6 +158,8 @@ def unfollow(username):
 @app.route('/explore')
 @login_required
 def explore():
+    page = request.args.get('page', 1, type=int)
     query = sa.select(Event).order_by(Event.timestamp.desc())
-    events = db.session.scalars(query).all()
-    return render_template('index.html', title='Explore', events=events)
+    events = db.paginate(query, page=page,
+                        per_page=app.config['POSTS_PER_PAGE'], error_out=False)
+    return render_template("index.html", title='Explore', events=events.items)
