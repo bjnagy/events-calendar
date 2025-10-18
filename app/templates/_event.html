@@ -1,11 +1,15 @@
-    <table>
+    <table class="table table-hover">
         <tr valign="top">
-            <td><img src="{{ event.author.avatar(36) }}"></td>
+            <td width="70px">
+                <a href="{{ url_for('user', username=event.author.username) }}">
+                    <img src="{{ event.author.avatar(70) }}" />
+                </a>
+            </td>
             <td>
                 <a href="{{ url_for('user', username=event.author.username) }}">
                     {{ event.author.username }}
                 </a>
-                posted:<br>{{ event.title }}
+                posted: <br>{{ event.title }}
             </td>
             <td>{{ event.author.description }}</td>
             <td>
