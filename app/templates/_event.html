@@ -9,21 +9,23 @@
                 <a href="{{ url_for('user', username=event.author.username) }}">
                     {{ event.author.username }}
                 </a>
-                posted: <br>{{ event.title }}
+                posted {{ moment(event.timestamp).fromNow() }}: 
+                <br>
+                {{ event.title }}
             </td>
             <td>{{ event.author.description }}</td>
             <td>
-                Starts: <b>{{ event.start_date }} 
+                Starts: <b>{{ moment(event.start_date).format("LLLL") }}
                     {% if event.start_time %}
-                    {{ event.start_time.strftime("%I:%M %p") }}
+                    {{ moment(event.start_time).format("LT") }}
                     {% endif %}</b>
             </td>
             <td>
                 {% if not event.end_date is none %}
-                Ends: <b>{{ event.end_date }}
+                Ends: <b>{{ moment(event.end_date).format("LLLL") }}
                 {% endif %}
                 {% if not event.end_time is none %}
-                {{ event.end_time.strftime("%I:%M %p") }}
+                {{ moment(event.end_time).format("LT") }}
                 {% endif %}</b>
             </td>
         </tr>

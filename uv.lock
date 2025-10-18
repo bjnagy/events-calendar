@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -157,6 +157,19 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-moment"
+version = "1.0.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/9c/d203c16773414f2c0ba97e68b224c1f9e01fffa845066601260672555f18/flask_moment-1.0.6.tar.gz", hash = "sha256:2f8969907cbacde4a88319792e8f920ba5c9dd9d99ced2346cad563795302b88", size = 13386, upload-time = "2024-05-28T22:20:41.742Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/59/45/fd18ef78325db99b4db449dd859ff9a31b8c42c5ba190970249e0ee1d483/Flask_Moment-1.0.6-py3-none-any.whl", hash = "sha256:3ae8baea20a41e99f457b9710ecd1368911dd5133f09a27583eb0dcb3491e31d", size = 6220, upload-time = "2024-05-28T22:20:40.303Z" },
+]
+
+[[package]]
 name = "flask-sqlalchemy"
 version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -307,6 +320,7 @@ dependencies = [
     { name = "flask-login" },
     { name = "flask-mail" },
     { name = "flask-migrate" },
+    { name = "flask-moment" },
     { name = "flask-sqlalchemy" },
     { name = "flask-wtf" },
     { name = "pyjwt" },
@@ -321,10 +335,20 @@ requires-dist = [
     { name = "flask-login", specifier = ">=0.6.3" },
     { name = "flask-mail", specifier = ">=0.10.0" },
     { name = "flask-migrate", specifier = ">=4.1.0" },
+    { name = "flask-moment", specifier = ">=1.0.6" },
     { name = "flask-sqlalchemy", specifier = ">=3.1.1" },
     { name = "flask-wtf", specifier = ">=1.2.2" },
     { name = "pyjwt", specifier = ">=2.10.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+]
+
+[[package]]
+name = "packaging"
+version = "25.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727, upload-time = "2025-04-19T11:48:59.673Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469, upload-time = "2025-04-19T11:48:57.875Z" },
 ]
 
 [[package]]
