@@ -6,6 +6,7 @@
     {% if form %}
     {{ wtf.quick_form(form) }}
     {% endif %}
+    <div id="map" style="height: 400px;"></div>
     {% for event in events %}
         {% include '_event.html' %}
     {% endfor %}
@@ -23,4 +24,11 @@
             </li>
         </ul>
     </nav>
+    <script>
+        var map = L.map('map', {doubleClickZoom: false}).locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+    </script>
 {% endblock %}
