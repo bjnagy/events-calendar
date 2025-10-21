@@ -135,6 +135,11 @@ class Event(db.Model):
     start_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
     end_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=True)
     end_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
+    location: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    location_desc: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    location_geojson: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    original_event_url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    original_event_category: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),

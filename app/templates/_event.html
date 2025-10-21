@@ -11,9 +11,26 @@
                 </a>
                 posted {{ moment(event.timestamp).fromNow() }}: 
                 <br>
+                {% if event.original_event_url %}
+                <a href="{{ event.original_event_url }}">
+                    {{ event.title }}
+                </a>
+                {% else %}
                 {{ event.title }}
+                {% endif %}
+                {% if event.original_event_category %}
+                {{ event.original_event_category }}
+                {% endif %}
             </td>
             <td>{{ event.author.description }}</td>
+            <td>
+                Location: {{ event.location }}
+                <br>
+                Description: {{ event.location_desc}}
+                <div style="display: none;">
+                    {{ event.location_geojson }}
+                </div>
+            </td>
             <td>
                 Starts: <b>{{ moment(event.start_date).format("LLLL") }}
                     {% if event.start_time %}

@@ -5,6 +5,7 @@ import sqlalchemy as sa
 from app import db
 from app.models import User
 import datetime
+import json
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -60,11 +61,22 @@ class EventForm(FlaskForm):
     start_time = TimeField("Start time", format='%H:%M', validators=[Optional()])
     end_date = DateField("End Date", format='%Y-%m-%d', validators=[Optional()])
     end_time = TimeField("End time", format='%H:%M', validators=[Optional()])
+    location = TextAreaField('Location of event', validators=[Length(min=0)])
+    location_desc = TextAreaField('Description of location', validators=[Length(min=0)])
+    location_geojson = TextAreaField('GeoJSON object describing location features', validators=[Length(min=0)])
+    original_event_url = TextAreaField('URL for the original event posting', validators=[Length(min=0)])
+    original_event_category= TextAreaField('Event category for the original event posting', validators=[Length(min=0)])
     submit = SubmitField('Submit')
 
     def validate_end_time(self, field):
         if not self.end_date.data and field.data:
             raise ValidationError('You cannot specify an end time without an end date')
+        
+    def validate_location_geojson(self, field):
+        try:
+            json.loads(field.data)
+        except json.JSONDecodeError:
+            raise ValidationError('GeoJSON is malformed')
         
 class ResetPasswordRequestForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
