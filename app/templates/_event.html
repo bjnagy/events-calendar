@@ -1,12 +1,12 @@
     <table class="table table-hover">
         <tr valign="top">
             <td width="70px">
-                <a href="{{ url_for('user', username=event.author.username) }}">
+                <a href="{{ url_for('main.user', username=event.author.username) }}">
                     <img src="{{ event.author.avatar(70) }}" />
                 </a>
             </td>
             <td>
-                <a href="{{ url_for('user', username=event.author.username) }}">
+                <a href="{{ url_for('main.user', username=event.author.username) }}">
                     {{ event.author.username }}
                 </a>
                 posted {{ moment(event.timestamp).fromNow() }}: 

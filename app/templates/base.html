@@ -18,20 +18,20 @@
     <body>
         <nav class="navbar navbar-expand-lg bg-body-tertiary">
             <div class="container">
-                <a class="navbar-brand" href="{{ url_for('index') }}">Events Calendar</a>
+                <a class="navbar-brand" href="{{ url_for('main.index') }}">Events Calendar</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="{{ url_for('index') }}">{{ ('Home') }}</a>
+                    <a class="nav-link" aria-current="page" href="{{ url_for('main.index') }}">{{ ('Home') }}</a>
                     </li>
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="{{ url_for('explore') }}">{{ ('Explore') }}</a>
+                    <a class="nav-link" aria-current="page" href="{{ url_for('main.explore') }}">{{ ('Explore') }}</a>
                     </li>
                     {% if g.search_form %}
-                    <form class="navbar-form navbar-left" method="get" action="{{ url_for('search') }}">
+                    <form class="navbar-form navbar-left" method="get" action="{{ url_for('main.search') }}">
                         <div class="form-group">
                             {{ g.search_form.q(size=20, class='form-control', placeholder=g.search_form.q.label.text) }}
                         </div>
@@ -41,17 +41,17 @@
                 <ul class="navbar-nav mb-2 mb-lg-0">
                     {% if current_user.is_anonymous %}
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="{{ url_for('login') }}">{{ ('Login') }}</a>
+                    <a class="nav-link" aria-current="page" href="{{ url_for('auth.login') }}">{{ ('Login') }}</a>
                     </li>
                     {% else %}
                     <li class="nav-item">
                     <!-- INSERT MESSAGES TEMPLATE -->
                     </li>
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="{{ url_for('user', username=current_user.username) }}">{{ ('Profile') }}</a>
+                    <a class="nav-link" aria-current="page" href="{{ url_for('main.user', username=current_user.username) }}">{{ ('Profile') }}</a>
                     </li>
                     <li class="nav-item">
-                    <a class="nav-link" aria-current="page" href="{{ url_for('logout') }}">{{ ('Logout') }}</a>
+                    <a class="nav-link" aria-current="page" href="{{ url_for('auth.logout') }}">{{ ('Logout') }}</a>
                     </li>
                     {% endif %}
                 </ul>
