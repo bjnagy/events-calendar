@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
@@ -8,6 +8,8 @@ from flask_login import UserMixin
 from hashlib import md5
 from time import time
 import jwt
+from flask import current_app, url_for
+import secrets
 
 @login.user_loader
 def load_user(id):
@@ -31,7 +33,31 @@ collections = sa.Table(
               primary_key=True)
 )
 
-class User(UserMixin, db.Model):
+class PaginatedAPIMixin(object):
+    @staticmethod
+    def to_collection_dict(query, page, per_page, endpoint, **kwargs):
+        resources = db.paginate(query, page=page, per_page=per_page,
+                                error_out=False)
+        data = {
+            'items': [item.to_dict() for item in resources.items],
+            '_meta': {
+                'page': page,
+                'per_page': per_page,
+                'total_pages': resources.pages,
+                'total_items': resources.total
+            },
+            '_links': {
+                'self': url_for(endpoint, page=page, per_page=per_page,
+                                **kwargs),
+                'next': url_for(endpoint, page=page + 1, per_page=per_page,
+                                **kwargs) if resources.has_next else None,
+                'prev': url_for(endpoint, page=page - 1, per_page=per_page,
+                                **kwargs) if resources.has_prev else None
+            }
+        }
+        return data
+
+class User(PaginatedAPIMixin, UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
                                                 unique=True)
@@ -41,6 +67,8 @@ class User(UserMixin, db.Model):
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(
         default=lambda: datetime.now(timezone.utc))
+    token: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), index=True, unique=True)
+    token_expiration: so.Mapped[Optional[datetime]]
 
     events: so.WriteOnlyMapped['Event'] = so.relationship(
         back_populates='author')
@@ -110,23 +138,45 @@ class User(UserMixin, db.Model):
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
-            app.config['SECRET_KEY'], algorithm='HS256')
+            current_app.config['SECRET_KEY'], algorithm='HS256')
 
     @staticmethod
     def verify_reset_password_token(token):
         try:
-            id = jwt.decode(token, app.config['SECRET_KEY'],
+            id = jwt.decode(token, current_app.config['SECRET_KEY'],
                             algorithms=['HS256'])['reset_password']
         except:
             return
         return db.session.get(User, id)
+    
+    def get_token(self, expires_in=3600):
+        now = datetime.now(timezone.utc)
+        if self.token and self.token_expiration.replace(
+                tzinfo=timezone.utc) > now + timedelta(seconds=60):
+            return self.token
+        self.token = secrets.token_hex(16)
+        self.token_expiration = now + timedelta(seconds=expires_in)
+        db.session.add(self)
+        return self.token
+
+    def revoke_token(self):
+        self.token_expiration = datetime.now(timezone.utc) - timedelta(
+            seconds=1)
+
+    @staticmethod
+    def check_token(token):
+        user = db.session.scalar(sa.select(User).where(User.token == token))
+        if user is None or user.token_expiration.replace(
+                tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            return None
+        return user
 
 
 
     def __repr__(self):
         return '<Event {}>'.format(self.title)
     
-class Event(db.Model):
+class Event(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
@@ -150,6 +200,23 @@ class Event(db.Model):
         primaryjoin=("collections.c.event_id == Event.id"),
         secondaryjoin=("collections.c.collection_id == Collection.id"),
         back_populates='events')
+    
+    def to_dict(self):
+        data = {}
+        for column in self.__table__.columns:
+            col_val = getattr(self, column.name)
+            if column.name in ['start_date', 'start_time', 'end_date', 'end_time', 'timestamp']:
+                if column.name in ['start_time', 'end_time', 'timestamp']:
+                    data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+                else:
+                    data[column.name] = col_val.isoformat() if col_val else None
+            else:
+                data[column.name] = col_val
+        return data
+    
+    def from_dict(self, data):
+        for field in data:
+            setattr(self, field, data[field])
     
     def add_to_collection(self, collection):
         if not self.is_in_collection(collection):
