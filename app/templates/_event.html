@@ -32,18 +32,12 @@
                 </div>
             </td>
             <td>
-                Starts: <b>{{ moment(event.start_date).format("LLLL") }}
-                    {% if event.start_time %}
-                    {{ moment(event.start_time).format("LT") }}
-                    {% endif %}</b>
+                Starts: <b>{{ moment(event.starts_at) }}</b>
             </td>
             <td>
                 {% if not event.end_date is none %}
-                Ends: <b>{{ moment(event.end_date).format("LLLL") }}
+                Ends: <b>{{ moment(event.ends_at) }}</b>
                 {% endif %}
-                {% if not event.end_time is none %}
-                {{ moment(event.end_time).format("LT") }}
-                {% endif %}</b>
             </td>
         </tr>
     </table>

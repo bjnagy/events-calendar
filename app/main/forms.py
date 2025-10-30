@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField, DateField, TimeField
+from wtforms import StringField, SubmitField, TextAreaField, DateField, TimeField, DateTimeField
 from wtforms.validators import ValidationError, DataRequired, Length, Optional
 import sqlalchemy as sa
 import datetime
@@ -32,10 +32,12 @@ class EventForm(FlaskForm):
         DataRequired(), Length(min=1, max=140)])
     description = TextAreaField('Description of event', validators=[
         DataRequired(), Length(min=0)])
-    start_date = DateField("Start Date", format='%Y-%m-%d', default=datetime.datetime.now(), validators=[DataRequired()])
-    start_time = TimeField("Start time", format='%H:%M', validators=[Optional()])
-    end_date = DateField("End Date", format='%Y-%m-%d', validators=[Optional()])
-    end_time = TimeField("End time", format='%H:%M', validators=[Optional()])
+    # start_date = DateField("Start Date", format='%Y-%m-%d', default=datetime.datetime.now(), validators=[DataRequired()])
+    # start_time = TimeField("Start time", format='%H:%M', validators=[Optional()])
+    # end_date = DateField("End Date", format='%Y-%m-%d', validators=[Optional()])
+    # end_time = TimeField("End time", format='%H:%M', validators=[Optional()])
+    starts_at = DateTimeField("Starts At", default=datetime.datetime.now(), validators=[DataRequired()])
+    ends_at = DateTimeField("Ends At", validators=[Optional()])
     location = TextAreaField('Location of event', validators=[Length(min=0)])
     location_desc = TextAreaField('Description of location', validators=[Length(min=0)])
     location_geojson = TextAreaField('GeoJSON object describing location features', validators=[Length(min=0)])

@@ -195,13 +195,16 @@ class Event(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
-    start_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=False)
-    start_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
-    end_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=True)
-    end_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
+    starts_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(), nullable=False)
+    ends_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(), nullable=False)
+    # start_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=False)
+    # start_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
+    # end_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=True)
+    # end_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
     location: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     location_desc: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     location_geojson: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    original_event_id: so.Mapped[str] = so.mapped_column(sa.String(50), index=True, nullable=True)
     original_event_url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     original_event_category: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
@@ -220,11 +223,13 @@ class Event(PaginatedAPIMixin, db.Model):
         data = {}
         for column in self.__table__.columns:
             col_val = getattr(self, column.name)
-            if column.name in ['start_date', 'start_time', 'end_date', 'end_time', 'timestamp']:
-                if column.name in ['start_time', 'end_time', 'timestamp']:
-                    data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
-                else:
-                    data[column.name] = col_val.isoformat() if col_val else None
+            if column.name in ['starts_at', 'ends_at', 'timestamp']:
+                data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+            # if column.name in ['start_date', 'start_time', 'end_date', 'end_time', 'timestamp']:
+            #     if column.name in ['start_time', 'end_time', 'timestamp']:
+            #         data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+            #     else:
+            #         data[column.name] = col_val.isoformat() if col_val else None
             else:
                 data[column.name] = col_val
         return data

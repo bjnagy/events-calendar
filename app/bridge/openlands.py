@@ -12,7 +12,7 @@ headers = {
 
 def getEventDetails(eventId):
     # print("eventId: ", eventId)
-    details = {'eventId': eventId}
+    details = {'event_id': eventId}
     event = requests.get(f'https://www.cervistech.com/acts/webreg/eventdetail.php?event_id={eventId}&org_id=0254&hide_buttons=yes&back=min',headers=headers)
     soup = BeautifulSoup(event.content, "html.parser")
     slots = []
@@ -20,7 +20,7 @@ def getEventDetails(eventId):
     try:
         text = "Opportunity Name:"
         element = soup.find(lambda tag: tag.name == "td" and text in tag.text)
-        details['opportunityName'] = element.get_text().replace(text,"").strip()
+        details['opportunity_name'] = element.get_text().replace(text,"").strip()
     except:
         element
 
@@ -40,7 +40,7 @@ def getEventDetails(eventId):
         text = "Spots Available:"
         element = soup.find(lambda tag: tag.name == "tr" and text in tag.text)
         tempVal = element.get_text().replace(text,"").strip()
-        slot['SpotsAvailable'] = parseSlotsAvailable(tempVal)
+        slot['spots_available'] = parseSlotsAvailable(tempVal)
 
         slots.append(slot)
     except:
@@ -49,8 +49,8 @@ def getEventDetails(eventId):
     try:
         text = "Meeting Location:"
         element = soup.find(lambda tag: tag.name == "tr" and text in tag.text)
-        details['meetingLocationDesc'] = element.get_text().replace(text,"").replace("View Map / Get Directions","").strip()
-        details['meetingLocation'] = element.find("a")["href"]
+        details['meeting_location_desc'] = element.get_text().replace(text,"").replace("View Map / Get Directions","").strip()
+        details['meeting_location'] = element.find("a")["href"]
     except:
         element
 
@@ -73,7 +73,7 @@ def getEventDetails(eventId):
     slots = [*slots, *extractSlotsTable(soup.find('table', id='result_list'))]
     details['slots'] = slots
 
-    details['url'] = f"https://www.cervistech.com/acts/webreg/spdetail.php?event_id={eventId}&org_id=0254"
+    details['url'] =  f"https://www.cervistech.com/acts/webreg/eventdetail.php?event_id={eventId}&org_id=0254" #&hide_buttons=yes&back=min"
 
     event_time = establishEventTime(slots)
     if not event_time is None:
@@ -92,14 +92,14 @@ def establishEventTime(slots):
 
     if len(slots) >= 1:
         for slot in slots:
-            slotStartTime = datetime.fromisoformat(slot['startTime'])
+            slotStartTime = datetime.fromisoformat(slot['start_time'])
             if startTime is None or slotStartTime < startTime:
                 startTime = slotStartTime
-            slotEndTime = datetime.fromisoformat(slot['endTime'])
+            slotEndTime = datetime.fromisoformat(slot['end_time'])
             if endTime is None or slotEndTime > endTime:
                     endTime = slotEndTime
-        eventTime['startTime'] = startTime.isoformat()
-        eventTime['endTime'] = endTime.isoformat()
+        eventTime['start_time'] = startTime.isoformat()
+        eventTime['end_time'] = endTime.isoformat()
         return eventTime
     else:
         return None
@@ -110,8 +110,8 @@ def parseEventTime(text):
     eventDate = text.split(" - ")[0]
     startTime = text.split(" - ")[1].split(" to ")[0]
     endTime = text.split(" - ")[1].split(" to ")[1]
-    retDict['startTime'] = datetime.strptime(eventDate + " " + startTime, "%a, %b %d, %Y %I:%M %p").isoformat()
-    retDict['endTime'] = datetime.strptime(eventDate + " " +  endTime, "%a, %b %d, %Y %I:%M %p").isoformat()
+    retDict['start_time'] = datetime.strptime(eventDate + " " + startTime, "%a, %b %d, %Y %I:%M %p").isoformat()
+    retDict['end_time'] = datetime.strptime(eventDate + " " +  endTime, "%a, %b %d, %Y %I:%M %p").isoformat()
     return retDict
 
 def parseSlotsAvailable(text):
@@ -130,15 +130,15 @@ def parseSlotsAvailable(text):
 def parseOrganizer(element):
     child = element.find_all("td")[1]
     retDict = {}
-    retDict["organizerName"] = child.contents[0]
-    retDict["organizerEmail"] = child.contents[2]
+    retDict["organizer_name"] = child.contents[0]
+    retDict["organizer_email"] = child.contents[2]
     try:
         if "/" in child.contents[4]:
-            retDict["organizerPhone"] = child.contents[4].split(' / ')
+            retDict["organizer_phone"] = child.contents[4].split(' / ')
         else:
-            retDict["organizerPhone"] = [child.contents[4]]
+            retDict["organizer_phone"] = [child.contents[4]]
     except:
-        retDict["organizerPhone"] = []
+        retDict["organizer_phone"] = []
     return retDict
 
 def extractSlotsTable(table):
@@ -159,7 +159,12 @@ def extractSlotsTable(table):
             slotInfo = row['title'].replace("header=[Slot Information] body=","").replace("[","").replace("]","")
             slotInfos = string_to_dict(slotInfo, "<br />", ":")
             slotInfos = {key.replace(" ",""): value for key, value in slotInfos.items()}
-            slotInfos["SpotsAvailable"] = parseSlotsAvailable(slotInfos["SpotsAvailable"])
+            rename_dict_key(slotInfos, "NumberCurrentlyonWaitlist", "number_currently_on_waitlist")
+            rename_dict_key(slotInfos, "NumberRegistered", "number_registered")
+            rename_dict_key(slotInfos, "ServiceHours", "service_hours")
+            rename_dict_key(slotInfos, "SpotsAvailable", "spots_available")
+            rename_dict_key(slotInfos, "TotalNeeded", "total_needed")
+            slotInfos["spots_available"] = parseSlotsAvailable(slotInfos["spots_available"])
             slot = {**slot, **slotInfos}
             slots.append(slot)
     #print(slots)
@@ -171,6 +176,9 @@ def string_to_dict(data, row_sep='\n', col_sep='=', key_type=str, value_type=str
         for pair in data.split(row_sep) if col_sep in pair
     }
 
+def rename_dict_key(dict, key_name, new_key_name):
+    if key_name in dict:
+        dict[new_key_name] = dict.pop(key_name)
 
 def create_feed():
     fg = FeedGenerator()
