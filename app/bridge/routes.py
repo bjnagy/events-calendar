@@ -16,9 +16,9 @@ from app.bridge import openlands
 
 @bp.route('/bridge/openlands', methods=['GET'])
 def openlands_bridge():
-    # data = openlands.get()
-    # return data
-    rss_xml = openlands.create_feed()
-    response = make_response(rss_xml)
-    response.headers.set('Content-Type', 'application/rss+xml')
-    return response
+    data = openlands.get()
+    return data
+    # rss_xml = openlands.create_feed()
+    # response = make_response(rss_xml)
+    # response.headers.set('Content-Type', 'application/rss+xml')
+    # return response
