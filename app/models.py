@@ -236,7 +236,10 @@ class Event(PaginatedAPIMixin, db.Model):
     
     def from_dict(self, data):
         for field in data:
-            setattr(self, field, data[field])
+            val = data[field]
+            if field in ['starts_at', 'ends_at']:
+                val = datetime.fromisoformat(val) if val else None
+            setattr(self, field, val)
     
     def add_to_collection(self, collection):
         if not self.is_in_collection(collection):
