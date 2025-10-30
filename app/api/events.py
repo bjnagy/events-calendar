@@ -27,8 +27,8 @@ def get_events():
 def create_event():
     user = db.get_or_404(User, token_auth.current_user().id)
     data = request.get_json()
-    if 'title' not in data or 'start_date' not in data:
-        return bad_request('must include title and start_date at minimum')
+    if 'title' not in data or 'starts_at' not in data:
+        return bad_request('must include title and starts_at at minimum')
     event = Event(author=user)
     event.from_dict(data)
     db.session.add(event)
