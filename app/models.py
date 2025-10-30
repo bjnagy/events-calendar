@@ -87,6 +87,23 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
+
+    def to_dict(self):
+        data = {}
+        for column in self.__table__.columns:
+            col_val = getattr(self, column.name)
+            if column.name in ['last_seen', 'token_expiration']:
+                if column.name in ['last_seen', 'token_expiration']:
+                    data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+                else:
+                    data[column.name] = col_val.isoformat() if col_val else None
+            else:
+                data[column.name] = col_val
+        return data
+    
+    def from_dict(self, data):
+        for field in data:
+            setattr(self, field, data[field])
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -170,8 +187,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
                 tzinfo=timezone.utc) < datetime.now(timezone.utc):
             return None
         return user
-
-
 
     def __repr__(self):
         return '<Event {}>'.format(self.title)
