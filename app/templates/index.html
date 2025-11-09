@@ -33,8 +33,8 @@
         // IMPLEMENT THIS POLICY https://operations.osmfoundation.org/policies/tiles/
         {% for event in events %}
             {% if event.location_lat and event.location_lon %}
-                let marker = L.marker([{{ event.location_lat }}, {{ event.location_lon }}]).addTo(map);
-                let popup_content = `{% include '_event_popup.html' %}`;
+                var marker = L.marker([{{ event.location_lat }}, {{ event.location_lon }}]).addTo(map);
+                var popup_content = `{% include '_event_popup.html' %}`;
                 marker.bindPopup(popup_content).openPopup();
             {% endif %}
         {% endfor %}

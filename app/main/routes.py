@@ -30,6 +30,9 @@ def index():
         
         form_data_dict.pop('csrf_token', None)
         form_data_dict.pop('submit', None)
+
+        form_data_dict.pop('timezone') #temp
+
         if form_data_dict['starts_at_time']:
             form_data_dict['starts_at'] = datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time'])
         else:
