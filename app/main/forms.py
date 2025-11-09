@@ -30,17 +30,11 @@ class EmptyForm(FlaskForm):
     submit = SubmitField('Submit')
 
 class EventForm(FlaskForm):
-    timezone_choices = []
-    for tz in pytz.common_timezones:
-        now = datetime.datetime.now(pytz.timezone(tz))
-        timezone_choices.append(tz) #(tz, f"{tz} - GMT{now.strftime('%z')}")
-    timezone_choices
-
     title = TextAreaField('Title of event', validators=[
         DataRequired(), Length(min=1, max=140)])
     description = TextAreaField('Description of event', validators=[
         DataRequired(), Length(min=0)])
-    timezone = SelectField('Timezone', choices=sorted(timezone_choices), validators=[DataRequired()])
+    timezone = SelectField('Timezone', choices=[(tz, tz) for tz in pytz.all_timezones], validators=[DataRequired()])
     starts_at_date = DateField("Start Date", default=datetime.datetime.today(), validators=[DataRequired()])
     starts_at_time = TimeField("Start time", format='%H:%M', default=datetime.datetime.now(), validators=[Optional()])
     ends_at_date = DateField("End Date", validators=[Optional()])
@@ -65,7 +59,6 @@ class EventForm(FlaskForm):
                 self.coords = coords  # Store the parsed result as a new attribute
             except Exception as e:
                 raise ValidationError(f"Error parsing Location: {e}")
-
 
     def validate_location_geojson(self, field):
         if field.data:

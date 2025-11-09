@@ -14,3 +14,4 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     ADMINS = ['test@example.com']
     POSTS_PER_PAGE = 3
+    DEFAULT_TIMEZONE = "America/Chicago"

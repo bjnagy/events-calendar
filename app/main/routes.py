@@ -6,6 +6,7 @@ from app.models import User, Event
 import sqlalchemy as sa
 from datetime import datetime, timezone
 from app.main import bp
+from app.time import local_to_utc
 
 @bp.before_request
 def before_request():
@@ -31,20 +32,19 @@ def index():
         form_data_dict.pop('csrf_token', None)
         form_data_dict.pop('submit', None)
 
-        form_data_dict.pop('timezone') #temp
-
-        if form_data_dict['starts_at_time']:
-            form_data_dict['starts_at'] = datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time'])
-        else:
-            form_data_dict['starts_at'] = form_data_dict['starts_at_date']
+        if not form_data_dict['starts_at_time']:
+            form_data_dict['starts_at_time'] = datetime.min.time()
+        form_data_dict['starts_at'] = local_to_utc(datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time']), form_data_dict['timezone'])
         form_data_dict.pop('starts_at_date')
         form_data_dict.pop('starts_at_time')
-        if form_data_dict['ends_at_time']:
-            form_data_dict['ends_at'] = datetime.combine(form_data_dict['ends_at_date'], form_data_dict['ends_at_time'])
-        elif form_data_dict['ends_at_date']:
-            form_data_dict['ends_at'] = form_data_dict['ends_at_date']
+
+        if form_data_dict['ends_at_date']:
+            if not form_data_dict['ends_at_time']:
+                form_data_dict['ends_at_time'] = datetime.max.time()
+            form_data_dict['ends_at'] = local_to_utc(datetime.combine(form_data_dict['ends_at_date'], form_data_dict['ends_at_time']), form_data_dict['timezone'])
         form_data_dict.pop('ends_at_date')
         form_data_dict.pop('ends_at_time')
+        form_data_dict.pop('timezone')
 
         event = Event(author=current_user)
         event.from_dict(form_data_dict)

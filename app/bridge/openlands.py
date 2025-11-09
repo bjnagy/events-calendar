@@ -2,19 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
-import pytz
+from app.time import local_to_utc
 
 from feedgen.feed import FeedGenerator
 
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0"
 }
-
-tz = pytz.timezone('America/Chicago')
-
-def local_to_utc(date_time):
-    localized = tz.localize(date_time)
-    return localized.astimezone(pytz.utc)
 
 def getEventDetails(eventId):
     # print("eventId: ", eventId)
@@ -116,8 +110,8 @@ def parseEventTime(text):
     eventDate = text.split(" - ")[0]
     startTime = text.split(" - ")[1].split(" to ")[0]
     endTime = text.split(" - ")[1].split(" to ")[1]
-    retDict['start_time'] = local_to_utc(datetime.strptime(eventDate + " " + startTime, "%a, %b %d, %Y %I:%M %p")).isoformat()
-    retDict['end_time'] = local_to_utc(datetime.strptime(eventDate + " " +  endTime, "%a, %b %d, %Y %I:%M %p")).isoformat()
+    retDict['start_time'] = local_to_utc(datetime.strptime(eventDate + " " + startTime, "%a, %b %d, %Y %I:%M %p"), "America/Chicago").isoformat()
+    retDict['end_time'] = local_to_utc(datetime.strptime(eventDate + " " +  endTime, "%a, %b %d, %Y %I:%M %p"), "America/Chicago").isoformat()
     return retDict
 
 def parseSlotsAvailable(text):

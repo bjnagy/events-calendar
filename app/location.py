@@ -1,6 +1,8 @@
 import re
 import urllib.parse as up
 import geopy.geocoders as geocoders
+
+#alternative:
 #https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html
 #https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=104+Oak+St,+Maywood,+IL+60153&benchmark=4&format=json
 

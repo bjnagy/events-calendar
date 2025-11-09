@@ -32,11 +32,16 @@
                 </div>
             </td>
             <td>
-                Starts: <b>{{ moment(event.starts_at).format('LLL') }}</b>
+                Starts: 
+                <b>
+                    {{ moment(event.starts_at).format('LLL') }}
+                </b>
             </td>
             <td>
                 {% if not event.ends_at is none %}
-                Ends: <b>{{ moment(event.ends_at).format('LLL') }}</b>
+                Ends: <b>
+                    {{ moment(event.ends_at).format('LLL') }}
+                </b>
                 {% endif %}
             </td>
         </tr>

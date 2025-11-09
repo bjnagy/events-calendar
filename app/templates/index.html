@@ -25,6 +25,19 @@
         </ul>
     </nav>
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const timezoneSelect = document.getElementById('timezone');
+            if (timezoneSelect) {
+                for (let i = 0; i < timezoneSelect.options.length; i++) {
+                    if (timezoneSelect.options[i].value === userTimezone) {
+                        timezoneSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        });
+        
         let map = L.map('map', {doubleClickZoom: false}).locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
