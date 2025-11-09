@@ -25,10 +25,18 @@
         </ul>
     </nav>
     <script>
-        var map = L.map('map', {doubleClickZoom: false}).locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
+        let map = L.map('map', {doubleClickZoom: false}).locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(map);
+        // IMPLEMENT THIS POLICY https://operations.osmfoundation.org/policies/tiles/
+        {% for event in events %}
+            {% if event.location_lat and event.location_lon %}
+                let marker = L.marker([{{ event.location_lat }}, {{ event.location_lon }}]).addTo(map);
+                let popup_content = `{% include '_event_popup.html' %}`;
+                marker.bindPopup(popup_content).openPopup();
+            {% endif %}
+        {% endfor %}
     </script>
 {% endblock %}

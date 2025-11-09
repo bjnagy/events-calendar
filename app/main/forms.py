@@ -1,12 +1,14 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField, DateField, TimeField, DateTimeField
+from wtforms import StringField, SubmitField, TextAreaField, DateField, TimeField, SelectField
 from wtforms.validators import ValidationError, DataRequired, Length, Optional
 import sqlalchemy as sa
 import datetime
 import json
+import pytz
 #from flask_babel import _, lazy_gettext as _l
 from app import db
 from app.models import User
+from app import location
         
 class EditProfileForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -28,16 +30,23 @@ class EmptyForm(FlaskForm):
     submit = SubmitField('Submit')
 
 class EventForm(FlaskForm):
+    timezone_choices = []
+    for tz in pytz.common_timezones:
+        now = datetime.datetime.now(pytz.timezone(tz))
+        timezone_choices.append(tz) #(tz, f"{tz} - GMT{now.strftime('%z')}")
+    timezone_choices
+
     title = TextAreaField('Title of event', validators=[
         DataRequired(), Length(min=1, max=140)])
     description = TextAreaField('Description of event', validators=[
         DataRequired(), Length(min=0)])
-    # start_date = DateField("Start Date", format='%Y-%m-%d', default=datetime.datetime.now(), validators=[DataRequired()])
-    # start_time = TimeField("Start time", format='%H:%M', validators=[Optional()])
-    # end_date = DateField("End Date", format='%Y-%m-%d', validators=[Optional()])
-    # end_time = TimeField("End time", format='%H:%M', validators=[Optional()])
-    starts_at = DateTimeField("Starts At", default=datetime.datetime.now(), validators=[DataRequired()])
-    ends_at = DateTimeField("Ends At", validators=[Optional()])
+    timezone = SelectField('Timezone', choices=sorted(timezone_choices), validators=[DataRequired()])
+    starts_at_date = DateField("Start Date", default=datetime.datetime.today(), validators=[DataRequired()])
+    starts_at_time = TimeField("Start time", format='%H:%M', default=datetime.datetime.now(), validators=[Optional()])
+    ends_at_date = DateField("End Date", validators=[Optional()])
+    ends_at_time = TimeField("End time", format='%H:%M', validators=[Optional()])
+    #starts_at = DateTimeLocalField("Starts At", default=datetime.datetime.now()) #format='%m/%d/%YT%H:%M', 
+    #ends_at = DateTimeLocalField("Ends At", validators=[Optional()])
     location = TextAreaField('Location of event', validators=[Length(min=0)])
     location_desc = TextAreaField('Description of location', validators=[Length(min=0)])
     location_geojson = TextAreaField('GeoJSON object describing location features', validators=[Length(min=0)])
@@ -45,12 +54,22 @@ class EventForm(FlaskForm):
     original_event_category= TextAreaField('Event category for the original event posting', validators=[Length(min=0)])
     submit = SubmitField('Submit')
 
-    def validate_end_time(self, field):
-        if not self.end_date.data and field.data:
+    def validate_ends_at_time(self, field):
+        if field.data and not self.ends_at_date.data:
             raise ValidationError('You cannot specify an end time without an end date')
         
+    def validate_location(self, field):
+        if field.data:
+            try:
+                coords = location.parse_location(field.data)
+                self.coords = coords  # Store the parsed result as a new attribute
+            except Exception as e:
+                raise ValidationError(f"Error parsing Location: {e}")
+
+
     def validate_location_geojson(self, field):
-        try:
-            json.loads(field.data)
-        except json.JSONDecodeError:
-            raise ValidationError('GeoJSON is malformed')
+        if field.data:
+            try:
+                json.loads(field.data)
+            except json.JSONDecodeError:
+                raise ValidationError('GeoJSON is malformed')

@@ -196,13 +196,11 @@ class Event(PaginatedAPIMixin, db.Model):
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     starts_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(), nullable=False)
-    ends_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(), nullable=False)
-    # start_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=False)
-    # start_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
-    # end_date: so.Mapped[datetime] = so.mapped_column(sa.Date(), nullable=True)
-    # end_time: so.Mapped[datetime] = so.mapped_column(sa.Time(), nullable=True)
+    ends_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime(), nullable=True)
     location: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     location_desc: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    location_lat: so.Mapped[float] = so.mapped_column(sa.Float(), nullable=True)
+    location_lon: so.Mapped[float] = so.mapped_column(sa.Float(), nullable=True)
     location_geojson: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     original_event_id: so.Mapped[str] = so.mapped_column(sa.String(50), index=True, nullable=True)
     original_event_url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
@@ -225,11 +223,6 @@ class Event(PaginatedAPIMixin, db.Model):
             col_val = getattr(self, column.name)
             if column.name in ['starts_at', 'ends_at', 'timestamp']:
                 data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
-            # if column.name in ['start_date', 'start_time', 'end_date', 'end_time', 'timestamp']:
-            #     if column.name in ['start_time', 'end_time', 'timestamp']:
-            #         data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
-            #     else:
-            #         data[column.name] = col_val.isoformat() if col_val else None
             else:
                 data[column.name] = col_val
         return data
@@ -237,7 +230,7 @@ class Event(PaginatedAPIMixin, db.Model):
     def from_dict(self, data):
         for field in data:
             val = data[field]
-            if field in ['starts_at', 'ends_at']:
+            if field in ['starts_at', 'ends_at'] and type(val) == 'str':
                 val = datetime.fromisoformat(val) if val else None
             setattr(self, field, val)
     
@@ -254,7 +247,7 @@ class Event(PaginatedAPIMixin, db.Model):
         return db.session.scalar(query) is not None
     
     def __repr__(self):
-        return '<Event {}>'.format(self.title)
+        return f'<Event {self.id} {self.title} {self.starts_at} {self.ends_at} {self.location_lat} {self.location_lon}>'
     
 class Collection(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)

@@ -19,9 +19,32 @@ def before_request():
 @login_required
 def index():
     form = EventForm()
-    #print(request.form)
     if form.validate_on_submit():
-        event = Event(title=form.title.data, description=form.description.data, start_date=form.start_date.data, start_time=form.start_time.data, end_date=form.end_date.data, end_time=form.end_time.data, author=current_user)
+        form_data_dict = form.data
+
+        if hasattr(form, "coords"):
+            lat = list(form.coords)[0]
+            lon = list(form.coords)[1]
+            form_data_dict['location_lat'] = lat
+            form_data_dict['location_lon'] = lon
+        
+        form_data_dict.pop('csrf_token', None)
+        form_data_dict.pop('submit', None)
+        if form_data_dict['starts_at_time']:
+            form_data_dict['starts_at'] = datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time'])
+        else:
+            form_data_dict['starts_at'] = form_data_dict['starts_at_date']
+        form_data_dict.pop('starts_at_date')
+        form_data_dict.pop('starts_at_time')
+        if form_data_dict['ends_at_time']:
+            form_data_dict['ends_at'] = datetime.combine(form_data_dict['ends_at_date'], form_data_dict['ends_at_time'])
+        elif form_data_dict['ends_at_date']:
+            form_data_dict['ends_at'] = form_data_dict['ends_at_date']
+        form_data_dict.pop('ends_at_date')
+        form_data_dict.pop('ends_at_time')
+
+        event = Event(author=current_user)
+        event.from_dict(form_data_dict)
         db.session.add(event)
         db.session.commit()
         flash('Your event is now live!')
