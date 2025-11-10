@@ -86,7 +86,7 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         back_populates='following')
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
+        return f'<User {self.id} {self.username} {self.token} {self.token_expiration}>'
 
     def to_dict(self):
         data = {}
@@ -187,9 +187,6 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
                 tzinfo=timezone.utc) < datetime.now(timezone.utc):
             return None
         return user
-
-    def __repr__(self):
-        return '<Event {}>'.format(self.title)
     
 class Event(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -236,7 +233,7 @@ class Event(PaginatedAPIMixin, db.Model):
                 setattr(self, "location_lat", lat)
                 setattr(self, "location_lon", lon)
             else:
-                if field in ['starts_at', 'ends_at'] and type(val) == 'str':
+                if field in ['starts_at', 'ends_at'] and not isinstance(val, datetime):
                     val = datetime.fromisoformat(val) if val else None
                 setattr(self, field, val)
     
