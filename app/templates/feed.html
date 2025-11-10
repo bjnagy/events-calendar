@@ -2,7 +2,11 @@
 {% import 'bootstrap_wtf.html' as wtf %}
 
 {% block content %}
+    {% if current_user.is_anonymous %}
+    <h1>Welcome to Events Calendar!</h1>
+    {% else %}
     <h1>Hi, {{ current_user.username }}!</h1>
+    {% endif %}
     {% if form %}
     {{ wtf.quick_form(form) }}
     {% endif %}

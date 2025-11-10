@@ -62,7 +62,7 @@ def feed():
                         prev_url=prev_url)
 
 @bp.route('/user/<username>')
-@login_required
+#@login_required
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
     page = request.args.get('page', 1, type=int)
