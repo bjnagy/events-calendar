@@ -22,10 +22,7 @@ def feed():
         form_data_dict = form.data
 
         if hasattr(form, "coords"):
-            lat = list(form.coords)[0]
-            lon = list(form.coords)[1]
-            form_data_dict['location_lat'] = lat
-            form_data_dict['location_lon'] = lon
+            form_data_dict['coords'] = form.coords
         
         form_data_dict.pop('csrf_token', None)
         form_data_dict.pop('submit', None)

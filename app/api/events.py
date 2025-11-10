@@ -6,6 +6,7 @@ from app.api.errors import bad_request
 import sqlalchemy as sa
 from flask import request
 from app.api.auth import token_auth
+import app.location as location
 
 #NEED TO CONFIRM TOKEN IS AUTHED FOR EVENTS TIED TO THAT USER
 
@@ -29,6 +30,12 @@ def create_event():
     data = request.get_json()
     if 'title' not in data or 'starts_at' not in data:
         return bad_request('must include title and starts_at at minimum')
+    if 'location' in data:
+        try:
+            coords = location.parse_location(data['location'])
+        except Exception as e:
+            return bad_request('event location could not be parsed')
+        data['coords'] = coords
     event = Event(author=user)
     event.from_dict(data)
     db.session.add(event)

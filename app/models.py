@@ -230,9 +230,15 @@ class Event(PaginatedAPIMixin, db.Model):
     def from_dict(self, data):
         for field in data:
             val = data[field]
-            if field in ['starts_at', 'ends_at'] and type(val) == 'str':
-                val = datetime.fromisoformat(val) if val else None
-            setattr(self, field, val)
+            if field == "coords":
+                lat = list(val)[0]
+                lon = list(val)[1]
+                setattr(self, "location_lat", lat)
+                setattr(self, "location_lon", lon)
+            else:
+                if field in ['starts_at', 'ends_at'] and type(val) == 'str':
+                    val = datetime.fromisoformat(val) if val else None
+                setattr(self, field, val)
     
     def add_to_collection(self, collection):
         if not self.is_in_collection(collection):
