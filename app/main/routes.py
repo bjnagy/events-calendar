@@ -14,11 +14,9 @@ def before_request():
         current_user.last_seen = datetime.now(timezone.utc)
         db.session.commit()
 
-
-@bp.route('/', methods=['GET', 'POST'])
-@bp.route('/index', methods=['GET', 'POST'])
+@bp.route('/feed', methods=['GET', 'POST'])
 @login_required
-def index():
+def feed():
     form = EventForm()
     if form.validate_on_submit():
         form_data_dict = form.data
@@ -51,15 +49,15 @@ def index():
         db.session.add(event)
         db.session.commit()
         flash('Your event is now live!')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.feed'))
     page = request.args.get('page', 1, type=int)
     events = db.paginate(current_user.following_events(), page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'], error_out=False)
-    next_url = url_for('main.index', page=events.next_num) \
+    next_url = url_for('main.feed', page=events.next_num) \
         if events.has_next else None
-    prev_url = url_for('main.index', page=events.prev_num) \
+    prev_url = url_for('main.feed', page=events.prev_num) \
         if events.has_prev else None
-    return render_template('index.html', title='Home', form=form,
+    return render_template('feed.html', title='Feed', form=form,
                         events=events.items, next_url=next_url,
                         prev_url=prev_url)
 
@@ -107,7 +105,7 @@ def follow(username):
             sa.select(User).where(User.username == username))
         if user is None:
             flash(f'User {username} not found.')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.explore'))
         if user == current_user:
             flash('You cannot follow yourself!')
             return redirect(url_for('main.user', username=username))
@@ -116,7 +114,7 @@ def follow(username):
         flash(f'You are following {username}!')
         return redirect(url_for('main.user', username=username))
     else:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.explore'))
 
 
 @bp.route('/unfollow/<username>', methods=['POST'])
@@ -128,7 +126,7 @@ def unfollow(username):
             sa.select(User).where(User.username == username))
         if user is None:
             flash(f'User {username} not found.')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.feed'))
         if user == current_user:
             flash('You cannot unfollow yourself!')
             return redirect(url_for('main.user', username=username))
@@ -137,13 +135,14 @@ def unfollow(username):
         flash(f'You are not following {username}.')
         return redirect(url_for('main.user', username=username))
     else:
-        return redirect(url_for('main.index'))
-    
-@bp.route('/explore')
-@login_required
+        return redirect(url_for('main.feed'))
+
+@bp.route('/', methods=['GET'])
+@bp.route('/explore', methods=['GET'])
+#@login_required
 def explore():
     page = request.args.get('page', 1, type=int)
     query = sa.select(Event).order_by(Event.timestamp.desc())
     events = db.paginate(query, page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'], error_out=False)
-    return render_template("index.html", title='Explore', events=events.items)
+    return render_template("feed.html", title='Explore', events=events.items)
