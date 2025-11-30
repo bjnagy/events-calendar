@@ -188,6 +188,34 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
             return None
         return user
     
+class Organization(PaginatedAPIMixin, db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String(140))
+    description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    timestamp: so.Mapped[datetime] = so.mapped_column(
+        index=True, default=lambda: datetime.now(timezone.utc))
+    events: so.WriteOnlyMapped['Event'] = so.relationship(
+        back_populates='organizer')
+    
+    def to_dict(self):
+        data = {}
+        for column in self.__table__.columns:
+            col_val = getattr(self, column.name)
+            if column.name in ['timestamp']:
+                data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+            else:
+                data[column.name] = col_val
+        return data
+    
+    def from_dict(self, data):
+        for field in data:
+            val = data[field]
+            setattr(self, field, val)
+    
+    def __repr__(self):
+        return f'<Organization {self.id} {self.name} {self.url}>'
+    
 class Event(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
@@ -207,6 +235,9 @@ class Event(PaginatedAPIMixin, db.Model):
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
                                                index=True)
     author: so.Mapped[User] = so.relationship(back_populates='events')
+    organization_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Organization.id),
+                                               index=True)
+    organizer: so.Mapped[Organization] = so.relationship(back_populates='events')
 
     in_collection: so.WriteOnlyMapped['Collection'] = so.relationship(
         secondary=collections, 
