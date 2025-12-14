@@ -70,8 +70,8 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
     token: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), index=True, unique=True)
     token_expiration: so.Mapped[Optional[datetime]]
 
-    events: so.WriteOnlyMapped['Event'] = so.relationship(
-        back_populates='author')
+    # events: so.WriteOnlyMapped['Event'] = so.relationship(
+    #     back_populates='author')
     
     collections: so.WriteOnlyMapped['Collection'] = so.relationship(
         back_populates='owner')
@@ -197,6 +197,8 @@ class Organization(PaginatedAPIMixin, db.Model):
         index=True, default=lambda: datetime.now(timezone.utc))
     events: so.WriteOnlyMapped['Event'] = so.relationship(
         back_populates='organizer')
+    feeds: so.WriteOnlyMapped['Feed'] = so.relationship(
+        back_populates='organizer')
     
     def to_dict(self):
         data = {}
@@ -215,6 +217,36 @@ class Organization(PaginatedAPIMixin, db.Model):
     
     def __repr__(self):
         return f'<Organization {self.id} {self.name} {self.url}>'
+
+class Feed(PaginatedAPIMixin, db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String(140))
+    description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+    timestamp: so.Mapped[datetime] = so.mapped_column(
+        index=True, default=lambda: datetime.now(timezone.utc))
+    organization_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Organization.id),
+                                               index=True)
+    organizer: so.Mapped[Organization] = so.relationship(back_populates='feeds')
+    events: so.WriteOnlyMapped['Event'] = so.relationship(
+        back_populates='feed')
+    
+    def to_dict(self):
+        data = {}
+        for column in self.__table__.columns:
+            col_val = getattr(self, column.name)
+            if column.name in ['timestamp']:
+                data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+            else:
+                data[column.name] = col_val
+        return data
+    
+    def from_dict(self, data):
+        for field in data:
+            val = data[field]
+            setattr(self, field, val)
+    
+    def __repr__(self):
+        return f'<Feed {self.id} {self.name} {self.description}>'
     
 class Event(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -232,9 +264,12 @@ class Event(PaginatedAPIMixin, db.Model):
     original_event_category: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-                                               index=True)
-    author: so.Mapped[User] = so.relationship(back_populates='events')
+    feed_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Feed.id),
+                                               index=True, nullable=True)
+    feed: so.Mapped[Feed] = so.relationship(back_populates='events')
+    # user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
+    #                                            index=True)
+    # author: so.Mapped[User] = so.relationship(back_populates='events')
     organization_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Organization.id),
                                                index=True)
     organizer: so.Mapped[Organization] = so.relationship(back_populates='events')
