@@ -10,6 +10,32 @@ from time import time
 import jwt
 from flask import current_app, url_for
 import secrets
+import hashlib
+import json
+
+def before_flush_listener(session, flust_context, instances):
+    #print("before_flush event listener called")
+    run_global_updates(session.dirty)
+    run_global_updates(session.new)
+
+
+def run_global_updates(records):
+    for obj in records:
+        # if hasattr(obj, 'update_timestamp'):
+        #     obj.update_timestamp()
+        #     print(f"Updating timestamp for {obj}")
+        if callable(getattr(obj, 'set_hash', None)):
+            obj.set_hash()
+            #print(f"Setting hash for {obj}")
+
+sa.event.listen(db.session, 'before_flush', before_flush_listener)
+
+def create_hash(dict):
+    dict.pop('id', None)
+    dict.pop('timestamp', None)
+    dict.pop('hash', None)
+    to_hash = json.dumps(dict)
+    return hashlib.sha256(to_hash.encode('utf-8')).hexdigest()
 
 @login.user_loader
 def load_user(id):
@@ -190,7 +216,7 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
     
 class Organization(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(140))
+    name: so.Mapped[str] = so.mapped_column(sa.String(140), index=True, unique=True)
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
@@ -229,6 +255,12 @@ class Feed(PaginatedAPIMixin, db.Model):
     organizer: so.Mapped[Organization] = so.relationship(back_populates='feeds')
     events: so.WriteOnlyMapped['Event'] = so.relationship(
         back_populates='feed')
+    type: so.Mapped[str] = so.mapped_column(sa.String(10))
+    uri: so.Mapped[Optional[str]] = so.mapped_column(sa.String())
+    token: so.Mapped[Optional[str]] = so.mapped_column(sa.String())
+    token_expiration: so.Mapped[Optional[datetime]]
+    last_refresh: so.Mapped[datetime] = so.mapped_column(
+        index=True, default=lambda: datetime.now(timezone.utc))
     
     def to_dict(self):
         data = {}
@@ -244,6 +276,24 @@ class Feed(PaginatedAPIMixin, db.Model):
         for field in data:
             val = data[field]
             setattr(self, field, val)
+
+    def refresh(self):
+        print('test')
+        #based on self.type and self.uri, create request url
+            # if token and not now() > token_expiration then add to url
+        #get new feed
+        #apply data map (i.e. field name changes)
+            #load as class based on self.type e.g. "Openlands", which has methods and field map for transforming resource for use by this app
+        #query all existing events in current feed [in future?]
+        #for each event in current feed
+            #if event.original_event_id found in new feed
+                #if new event hash doesn't match current event hash
+                    #update
+            #if event.original_event_id not found in new feed
+                #delete
+        #for each remaining event in new feed
+            #add
+        #update self.last_fresh to now()
     
     def __repr__(self):
         return f'<Feed {self.id} {self.name} {self.description}>'
@@ -267,6 +317,7 @@ class Event(PaginatedAPIMixin, db.Model):
     feed_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Feed.id),
                                                index=True, nullable=True)
     feed: so.Mapped[Feed] = so.relationship(back_populates='events')
+    hash: so.Mapped[str] = so.mapped_column(sa.String(64), nullable=True)
     # user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
     #                                            index=True)
     # author: so.Mapped[User] = so.relationship(back_populates='events')
@@ -279,6 +330,16 @@ class Event(PaginatedAPIMixin, db.Model):
         primaryjoin=("collections.c.event_id == Event.id"),
         secondaryjoin=("collections.c.collection_id == Collection.id"),
         back_populates='events')
+    
+    def set_hash(self):
+        dict = self.to_dict()
+        #print(f'Start dict: {dict}')
+        self.hash = create_hash(dict)
+    
+    def check_hash(self, dict):
+        hash = create_hash(dict)
+        #print(f'End dict: {dict}')
+        return hash == self.hash
     
     def to_dict(self):
         data = {}
