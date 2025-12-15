@@ -1,13 +1,13 @@
     <table class="table table-hover">
         <tr valign="top">
             <td width="70px">
-                <a href="{{ url_for('main.user', username=event.author.username) }}">
-                    <img src="{{ event.author.avatar(70) }}" />
+                <a href="{{ url_for('main.user', username=event.owner.username) }}">
+                    <img src="{{ event.owner.avatar(70) }}" />
                 </a>
             </td>
             <td>
-                <a href="{{ url_for('main.user', username=event.author.username) }}">
-                    {{ event.author.username }}
+                <a href="{{ url_for('main.user', username=event.owner.username) }}">
+                    {{ event.owner.username }}
                 </a>
                 posted {{ moment(event.timestamp).fromNow() }}: 
                 <br>
@@ -22,7 +22,7 @@
                 {{ event.original_event_category }}
                 {% endif %}
             </td>
-            <td>{{ event.author.description }}</td>
+            <td>{{ event.owner.description }}</td>
             <td>
                 Location: {{ event.location }}
                 <br>

@@ -4,6 +4,8 @@ from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from app import db, login
+import app.location as location
+from app.time import local_to_utc
 from flask_login import UserMixin
 from hashlib import md5
 from time import time
@@ -12,6 +14,15 @@ from flask import current_app, url_for
 import secrets
 import hashlib
 import json
+import feeds
+
+def ordered(obj):
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    if isinstance(obj, list):
+        return sorted(ordered(x) for x in obj)
+    else:
+        return obj
 
 def before_flush_listener(session, flust_context, instances):
     #print("before_flush event listener called")
@@ -34,7 +45,8 @@ def create_hash(dict):
     dict.pop('id', None)
     dict.pop('timestamp', None)
     dict.pop('hash', None)
-    to_hash = json.dumps(dict)
+    ordered_dict = ordered(dict)
+    to_hash = json.dumps(ordered_dict)
     return hashlib.sha256(to_hash.encode('utf-8')).hexdigest()
 
 @login.user_loader
@@ -58,6 +70,12 @@ collections = sa.Table(
     sa.Column('event_id', sa.Integer, sa.ForeignKey('event.id'),
               primary_key=True)
 )
+
+class ValidationError(Exception):
+    def __init__(self, message, status_code=400):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
 
 class PaginatedAPIMixin(object):
     @staticmethod
@@ -84,10 +102,11 @@ class PaginatedAPIMixin(object):
         return data
 
 class User(PaginatedAPIMixin, UserMixin, db.Model):
+    #add profile_url to retrieve Org logo
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
                                                 unique=True)
-    email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True,
+    email: so.Mapped[Optional[str]] = so.mapped_column(sa.String(120), index=True,
                                              unique=True)
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
     about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
@@ -95,9 +114,14 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         default=lambda: datetime.now(timezone.utc))
     token: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), index=True, unique=True)
     token_expiration: so.Mapped[Optional[datetime]]
+    account_type: so.Mapped[str] = so.mapped_column(sa.String(16), index=True)
+    url: so.Mapped[Optional[str]] = so.mapped_column(sa.String(), nullable=True)
 
-    # events: so.WriteOnlyMapped['Event'] = so.relationship(
-    #     back_populates='author')
+    feeds: so.WriteOnlyMapped['Feed'] = so.relationship(
+        back_populates='owner')
+
+    events: so.WriteOnlyMapped['Event'] = so.relationship(
+        back_populates='owner')
     
     collections: so.WriteOnlyMapped['Collection'] = so.relationship(
         back_populates='owner')
@@ -111,18 +135,12 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         secondaryjoin=(followers.c.follower_id == id),
         back_populates='following')
 
-    def __repr__(self):
-        return f'<User {self.id} {self.username} {self.token} {self.token_expiration}>'
-
     def to_dict(self):
         data = {}
         for column in self.__table__.columns:
             col_val = getattr(self, column.name)
             if column.name in ['last_seen', 'token_expiration']:
-                if column.name in ['last_seen', 'token_expiration']:
-                    data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
-                else:
-                    data[column.name] = col_val.isoformat() if col_val else None
+                data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
             else:
                 data[column.name] = col_val
         return data
@@ -138,8 +156,9 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
     
     def avatar(self, size):
-        digest = md5(self.email.lower().encode('utf-8')).hexdigest()
-        return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
+        if self.email:
+            digest = md5(self.email.lower().encode('utf-8')).hexdigest()
+            return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
     
     def follow(self, user):
         if not self.is_following(user):
@@ -168,14 +187,14 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
         Follower = so.aliased(User)
         return (
             sa.select(Event)
-            .join(Event.author.of_type(Source))
+            .join(Event.owner.of_type(Source))
             .join(Source.followers.of_type(Follower), isouter=True)
             .where(sa.or_(
                 Follower.id == self.id,
                 Source.id == self.id,
             ))
             .group_by(Event)
-            .order_by(Event.timestamp.desc())
+            .order_by(Event.starts_at.asc())
         )
         
     def get_reset_password_token(self, expires_in=600):
@@ -213,36 +232,39 @@ class User(PaginatedAPIMixin, UserMixin, db.Model):
                 tzinfo=timezone.utc) < datetime.now(timezone.utc):
             return None
         return user
-    
-class Organization(PaginatedAPIMixin, db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(140), index=True, unique=True)
-    description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
-    url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc))
-    events: so.WriteOnlyMapped['Event'] = so.relationship(
-        back_populates='organizer')
-    feeds: so.WriteOnlyMapped['Feed'] = so.relationship(
-        back_populates='organizer')
-    
-    def to_dict(self):
-        data = {}
-        for column in self.__table__.columns:
-            col_val = getattr(self, column.name)
-            if column.name in ['timestamp']:
-                data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
-            else:
-                data[column.name] = col_val
-        return data
-    
-    def from_dict(self, data):
-        for field in data:
-            val = data[field]
-            setattr(self, field, val)
-    
+        
     def __repr__(self):
-        return f'<Organization {self.id} {self.name} {self.url}>'
+        return f'<User {self.id} {self.username} {self.token} {self.token_expiration}>'
+
+# class Organization(PaginatedAPIMixin, db.Model):
+#     id: so.Mapped[int] = so.mapped_column(primary_key=True)
+#     name: so.Mapped[str] = so.mapped_column(sa.String(140), index=True, unique=True)
+#     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+#     url: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
+#     timestamp: so.Mapped[datetime] = so.mapped_column(
+#         index=True, default=lambda: datetime.now(timezone.utc))
+#     events: so.WriteOnlyMapped['Event'] = so.relationship(
+#         back_populates='organizer')
+#     feeds: so.WriteOnlyMapped['Feed'] = so.relationship(
+#         back_populates='organizer')
+    
+#     def to_dict(self):
+#         data = {}
+#         for column in self.__table__.columns:
+#             col_val = getattr(self, column.name)
+#             if column.name in ['timestamp']:
+#                 data[column.name] = col_val.replace(tzinfo=timezone.utc).isoformat() if col_val else None
+#             else:
+#                 data[column.name] = col_val
+#         return data
+    
+#     def from_dict(self, data):
+#         for field in data:
+#             val = data[field]
+#             setattr(self, field, val)
+    
+#     def __repr__(self):
+#         return f'<Organization {self.id} {self.name} {self.url}>'
 
 class Feed(PaginatedAPIMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -250,17 +272,17 @@ class Feed(PaginatedAPIMixin, db.Model):
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
-    organization_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Organization.id),
-                                               index=True)
-    organizer: so.Mapped[Organization] = so.relationship(back_populates='feeds')
-    events: so.WriteOnlyMapped['Event'] = so.relationship(
-        back_populates='feed')
     type: so.Mapped[str] = so.mapped_column(sa.String(10))
     uri: so.Mapped[Optional[str]] = so.mapped_column(sa.String())
     token: so.Mapped[Optional[str]] = so.mapped_column(sa.String())
     token_expiration: so.Mapped[Optional[datetime]]
     last_refresh: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
+                                               index=True)
+    owner: so.Mapped[User] = so.relationship(back_populates='feeds')
+    events: so.WriteOnlyMapped['Event'] = so.relationship(
+        back_populates='feed')
     
     def to_dict(self):
         data = {}
@@ -278,27 +300,47 @@ class Feed(PaginatedAPIMixin, db.Model):
             setattr(self, field, val)
 
     def refresh(self):
-        print('test')
+        feed_class = getattr(feeds, self.type, None)
+        if feed_class is not None:
+            feed_instance = feed_class()
+        else:
+            raise ValidationError(f"Invalid feed '{self.type}'")
         #based on self.type and self.uri, create request url
             # if token and not now() > token_expiration then add to url
         #get new feed
         #apply data map (i.e. field name changes)
             #load as class based on self.type e.g. "Openlands", which has methods and field map for transforming resource for use by this app
         #query all existing events in current feed [in future?]
-        #for each event in current feed
-            #if event.original_event_id found in new feed
-                #if new event hash doesn't match current event hash
-                    #update
-            #if event.original_event_id not found in new feed
-                #delete
-        #for each remaining event in new feed
-            #add
-        #update self.last_fresh to now()
+        events = feed_instance.get()
+        #print(events)
+        current_query = self.events.select().where(Event.feed_id == self.id)
+        current_events = db.session.scalars(current_query).all()
+        found_events = []
+        for current_event in current_events:
+            found_event = None
+            for event in events:
+                if current_event.original_event_id == event['original_event_id']:
+                    if not current_event.check_hash(event):
+                        found_event = event
+                        found_events.append(found_event)
+                        events.remove(event)
+                        break
+            if found_event:
+                current_event.from_dict(event)
+            else:
+                db.session.delete(current_event)
+        for event in events: #remaining events are new
+            e1 = Event(owner=self.owner, feed=self)
+            e1.from_dict(event)
+            db.session.add(e1)
+        self.last_refresh = datetime.now(timezone.utc)
+        db.session.commit()
     
     def __repr__(self):
         return f'<Feed {self.id} {self.name} {self.description}>'
     
 class Event(PaginatedAPIMixin, db.Model):
+    #add url for event photo
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String(140))
     description: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
@@ -314,16 +356,14 @@ class Event(PaginatedAPIMixin, db.Model):
     original_event_category: so.Mapped[str] = so.mapped_column(sa.String(), nullable=True)
     timestamp: so.Mapped[datetime] = so.mapped_column(
         index=True, default=lambda: datetime.now(timezone.utc))
-    feed_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Feed.id),
-                                               index=True, nullable=True)
-    feed: so.Mapped[Feed] = so.relationship(back_populates='events')
     hash: so.Mapped[str] = so.mapped_column(sa.String(64), nullable=True)
-    # user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
-    #                                            index=True)
-    # author: so.Mapped[User] = so.relationship(back_populates='events')
-    organization_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(Organization.id),
+
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
                                                index=True)
-    organizer: so.Mapped[Organization] = so.relationship(back_populates='events')
+    owner: so.Mapped[User] = so.relationship(back_populates='events')
+
+    feed_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey(Feed.id), index=True)
+    feed: so.Mapped[Feed] = so.relationship(back_populates='events')
 
     in_collection: so.WriteOnlyMapped['Collection'] = so.relationship(
         secondary=collections, 
@@ -352,17 +392,40 @@ class Event(PaginatedAPIMixin, db.Model):
         return data
     
     def from_dict(self, data):
+        if 'starts_at_date' in data: #data is from web form
+            if not data['starts_at_time']:
+                data['starts_at_time'] = datetime.min.time()
+            data['starts_at'] = local_to_utc(datetime.combine(data['starts_at_date'], data['starts_at_time']), data['timezone'])
+            data.pop('starts_at_date')
+            data.pop('starts_at_time')
+
+            if data['ends_at_date']:
+                if not data['ends_at_time']:
+                    data['ends_at_time'] = datetime.max.time()
+                data['ends_at'] = local_to_utc(datetime.combine(data['ends_at_date'], data['ends_at_time']), data['timezone'])
+            data.pop('ends_at_date')
+            data.pop('ends_at_time')
+            data.pop('timezone')
+        
+        if 'location' in data:
+            try:
+                coords = location.parse_location(data['location'])
+                data['location_lat'] = list(coords)[0]
+                data['location_lon'] = list(coords)[1]
+                data.pop('location')
+            except Exception as e:
+                #raise ValidationError(f"Location '{data['location']}'could not be parsed")
+                pass #unparsed location will be added as 'location'
+        if 'coords' in data:
+            data['location_lat'] = list(data['coords'])[0]
+            data['location_lon'] = list(data['coords'])[1]
+            data.pop('coords')
+
         for field in data:
             val = data[field]
-            if field == "coords":
-                lat = list(val)[0]
-                lon = list(val)[1]
-                setattr(self, "location_lat", lat)
-                setattr(self, "location_lon", lon)
-            else:
-                if field in ['starts_at', 'ends_at'] and not isinstance(val, datetime):
-                    val = datetime.fromisoformat(val) if val else None
-                setattr(self, field, val)
+            if field in ['starts_at', 'ends_at'] and not isinstance(val, datetime):
+                val = datetime.fromisoformat(val) if val else None
+            setattr(self, field, val)
     
     def add_to_collection(self, collection):
         if not self.is_in_collection(collection):

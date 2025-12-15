@@ -28,12 +28,10 @@ def login():
         return redirect(next_page)
     return render_template('auth/login.html', title='Sign In', form=form)
 
-
 @bp.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('main.explore'))
-
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -41,7 +39,7 @@ def register():
         return redirect(url_for('main.feed'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.email.data)
+        user = User(username=form.username.data, email=form.email.data, account_type="user")
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()

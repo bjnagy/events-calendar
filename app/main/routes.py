@@ -20,28 +20,28 @@ def feed():
     form = EventForm()
     if form.validate_on_submit():
         form_data_dict = form.data
-
-        if hasattr(form, "coords"):
-            form_data_dict['coords'] = form.coords
         
         form_data_dict.pop('csrf_token', None)
         form_data_dict.pop('submit', None)
 
-        if not form_data_dict['starts_at_time']:
-            form_data_dict['starts_at_time'] = datetime.min.time()
-        form_data_dict['starts_at'] = local_to_utc(datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time']), form_data_dict['timezone'])
-        form_data_dict.pop('starts_at_date')
-        form_data_dict.pop('starts_at_time')
+        # if hasattr(form, "coords"):
+        #     form_data_dict['coords'] = form.coords
 
-        if form_data_dict['ends_at_date']:
-            if not form_data_dict['ends_at_time']:
-                form_data_dict['ends_at_time'] = datetime.max.time()
-            form_data_dict['ends_at'] = local_to_utc(datetime.combine(form_data_dict['ends_at_date'], form_data_dict['ends_at_time']), form_data_dict['timezone'])
-        form_data_dict.pop('ends_at_date')
-        form_data_dict.pop('ends_at_time')
-        form_data_dict.pop('timezone')
+        # if not form_data_dict['starts_at_time']:
+        #     form_data_dict['starts_at_time'] = datetime.min.time()
+        # form_data_dict['starts_at'] = local_to_utc(datetime.combine(form_data_dict['starts_at_date'], form_data_dict['starts_at_time']), form_data_dict['timezone'])
+        # form_data_dict.pop('starts_at_date')
+        # form_data_dict.pop('starts_at_time')
 
-        event = Event(author=current_user)
+        # if form_data_dict['ends_at_date']:
+        #     if not form_data_dict['ends_at_time']:
+        #         form_data_dict['ends_at_time'] = datetime.max.time()
+        #     form_data_dict['ends_at'] = local_to_utc(datetime.combine(form_data_dict['ends_at_date'], form_data_dict['ends_at_time']), form_data_dict['timezone'])
+        # form_data_dict.pop('ends_at_date')
+        # form_data_dict.pop('ends_at_time')
+        # form_data_dict.pop('timezone')
+
+        event = Event(owner=current_user)
         event.from_dict(form_data_dict)
         db.session.add(event)
         db.session.commit()
@@ -63,7 +63,7 @@ def feed():
 def user(username):
     user = db.first_or_404(sa.select(User).where(User.username == username))
     page = request.args.get('page', 1, type=int)
-    query = user.events.select().order_by(Event.timestamp.desc())
+    query = user.events.select().order_by(Event.timestamp.asc())
     events = db.paginate(query, page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'],
                         error_out=False)
@@ -139,7 +139,11 @@ def unfollow(username):
 #@login_required
 def explore():
     page = request.args.get('page', 1, type=int)
-    query = sa.select(Event).order_by(Event.timestamp.desc())
+    query = sa.select(Event).order_by(Event.starts_at.asc())
     events = db.paginate(query, page=page,
                         per_page=current_app.config['POSTS_PER_PAGE'], error_out=False)
-    return render_template("feed.html", title='Explore', events=events.items)
+    next_url = url_for('main.explore', page=events.next_num) \
+        if events.has_next else None
+    prev_url = url_for('main.explore', page=events.prev_num) \
+        if events.has_prev else None
+    return render_template("feed.html", title='Explore', events=events.items, next_url=next_url, prev_url=prev_url)

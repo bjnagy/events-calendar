@@ -11,12 +11,13 @@
 from flask import make_response
 
 from app.bridge import bp
-from app.bridge import openlands
+#from app.bridge import openlands
+import feeds
 
 
 @bp.route('/bridge/openlands', methods=['GET'])
 def openlands_bridge():
-    data = openlands.get()
+    data = feeds.Openlands.get('bridge')
     return data
     # rss_xml = openlands.create_feed()
     # response = make_response(rss_xml)
