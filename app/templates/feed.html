@@ -10,7 +10,7 @@
     {% if form %}
     {{ wtf.quick_form(form) }}
     {% endif %}
-    <div id="map" style="height: 400px;"></div>
+    <div id="map" style="height: 400px; position: sticky;"></div>
     <nav aria-label="Event navigation">
         <ul class="pagination">
             <li class="page-item{% if not prev_url %} disabled{% endif %}">
@@ -25,9 +25,11 @@
             </li>
         </ul>
     </nav>
-    {% for event in events %}
-        {% include '_event.html' %}
-    {% endfor %}
+    <div id="events">
+        {% for event in events %}
+            {% include '_event.html' %}
+        {% endfor %}
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
