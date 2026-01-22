@@ -8,7 +8,7 @@
 # from app.models import User
 # from app.auth.email import send_password_reset_email
 
-from flask import make_response
+from flask import make_response, request
 
 from app.bridge import bp
 #from app.bridge import openlands
@@ -17,7 +17,7 @@ import feeds
 
 @bp.route('/bridge/openlands', methods=['GET'])
 def openlands_bridge():
-    data = feeds.Openlands.get('bridge')
+    data = feeds.Openlands.get(request.args.get('format', default="bridge"))
     return data
     # rss_xml = openlands.create_feed()
     # response = make_response(rss_xml)

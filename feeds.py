@@ -4,6 +4,7 @@ from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
 from app.time import local_to_utc
 import re
+import hashlib
 
 #from feedgen.feed import FeedGenerator
 
@@ -249,10 +250,23 @@ class Openlands:
             }
             events = []
             for raw_event in raw_events:
-                raw_event.pop('slots')
                 raw_event.pop('organizer')
-                event = {field_map.get(k, k): v for k, v in raw_event.items()}
-                events.append(event)
+                if len(raw_event['slots']) > 1:
+                    i=0
+                    for slot in raw_event['slots']:
+                        i=i+1
+                        #slot has start_time and end_time. raw_event has everything else, just needs start_time and end_time replaced
+                        slot_event = raw_event.copy()
+                        slot_event.pop('slots')
+                        slot_event['start_time'] = slot['start_time']
+                        slot_event['end_time'] = slot['end_time']
+                        slot_event['event_id'] = f"{slot_event['event_id']}-{i}"
+                        event = {field_map.get(k, k): v for k, v in slot_event.items()}
+                        events.append(event)
+                else:
+                    raw_event.pop('slots')
+                    event = {field_map.get(k, k): v for k, v in raw_event.items()}
+                    events.append(event)
             return events
         elif destination == "bridge":
             return raw_events
