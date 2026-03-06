@@ -6,6 +6,10 @@ from app.time import local_to_utc
 import re
 import hashlib
 
+#chihacknight
+import pandas as pd
+import json
+
 #from feedgen.feed import FeedGenerator
 
 headers = {
@@ -271,6 +275,86 @@ class Openlands:
         elif destination == "bridge":
             return raw_events
 
+
+class ChiHackNight():
+    url = "https://chihacknight.org/events/index.html"
+
+    @staticmethod
+    def get(status='upcoming'):
+        response = requests.get(ChiHackNight.url, headers=headers)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        upcoming_events = []
+        past_events = []
+        if status == 'upcoming' or status == 'all':
+            upcoming_events = ChiHackNight.get_events_table(soup, 'upcoming-events', 'html')
+        if status == 'past' or status == 'all':
+            past_events = ChiHackNight.get_events_table(soup, 'past-events', 'html')
+        all_events = [*upcoming_events, *past_events]
+        for event in all_events:
+            meta = event['Date'].find('meta')
+            if meta:
+                event['starts_at'] = meta.get('datetime')
+            else:
+                event['starts_at'] = ''
+            event.pop('Date', None)
+            event['id'] = event['#'].get_text().strip()
+            event.pop('#')
+            base_url = urlparse(ChiHackNight.url)
+            base_url = f"{base_url.scheme}://{base_url.netloc}"
+            event['url'] = base_url + event['Event'].find('a').get('href')
+            event['title'] = event['Event'].get_text().strip()
+            event.pop('Event', None)
+            event['speakers'] = event['Speaker(s)'].get_text().strip()
+            event.pop('Speaker(s)', None)
+            separator = '|BR|'
+            for br in event['Tags'].find_all('br'):
+                br.replace_with(separator)
+            tags_text = event['Tags'].get_text(strip=True)
+            tags = tags_text.split(separator)
+            tags = [tag.strip() for tag in tags if tag.strip()]
+            event['tags'] = tags
+            event.pop('Tags', None)
+            video = event['Video'].find('a')
+            if video:
+                event['video'] = video.get('href')
+            else:
+                event['video'] = ''
+            event.pop('Video', None)
+
+        return all_events
+
+
+    @staticmethod
+    def get_events_table(soup, id, cell_extract_strategy='text'):
+        table = soup.find('table', id=id)
+        # Extract headers from <th> tags
+        table_headers = [th.get_text() for th in table.find('thead').find_all('th')]
+
+        # Extract rows from <td> tags and map to headers
+        rows = []
+        for tr in table.find('tbody').find_all('tr'):
+            if cell_extract_strategy == 'text':
+                cells = [td.get_text().strip() for td in tr.find_all('td')]
+            elif cell_extract_strategy == 'html':
+                cells = [td for td in tr.find_all('td')]
+            rows.append(dict(zip(table_headers, cells)))
+
+        # Convert to JSON string
+        #json_data = json.dumps(rows, indent=4)
+        #print(json_data)
+        return rows
+
+    @staticmethod
+    def get_cell_value(cell, strategy):
+        if strategy == 'text':
+            return cell.get_text()
+        elif strategy == 'meta':
+            meta = td.find('meta')
+            if meta:
+                return cell.get_text() #TEMP - NYI
+            else:
+                return cell.get_text()
+
 # def create_feed():
 #     fg = FeedGenerator()
 #     fg.title('My Awesome Blog')
@@ -297,5 +381,6 @@ class Openlands:
 # Print the response content
 #print(f"Content: {response.text}")
 if __name__ == "__main__":
-    print(Openlands.get())
+    #print(Openlands.get())
     #print(create_feed())
+    print(ChiHackNight.get('all'))

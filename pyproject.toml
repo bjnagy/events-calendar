@@ -20,6 +20,7 @@ dependencies = [
     "geopy>=2.4.1",
     "gunicorn>=23.0.0",
     "httpie>=3.2.4",
+    "pandas>=3.0.1",
     "pyjwt>=2.10.1",
     "python-dotenv>=1.1.1",
     "pytz>=2025.2",

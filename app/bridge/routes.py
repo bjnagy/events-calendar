@@ -23,3 +23,8 @@ def openlands_bridge():
     # response = make_response(rss_xml)
     # response.headers.set('Content-Type', 'application/rss+xml')
     # return response
+
+@bp.route('/bridge/chihacknight', methods=['GET'])
+def chihacknight_bridge():
+    data = feeds.ChiHackNight.get(request.args.get('status', default="upcoming"))
+    return data
