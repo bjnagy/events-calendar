@@ -14,7 +14,7 @@ def run_report(url):
     results = analyze_results(response)
     return results
 
-async def capture_traffic(url, timeout=10):
+async def capture_traffic(url, timeout=2):
     async with async_playwright() as p:
         # Launch browser and create a new page
         #browser = await p.chromium.launch(headless=True)
@@ -100,12 +100,16 @@ async def capture_traffic(url, timeout=10):
         # Navigate and wait for the 'load' event (Complete)
         try:
             #print(f"Navigating to {url}...")
-            await page.goto(url, wait_until="networkidle", timeout=timeout*1000)
-            start_time = time.time()
-            while pending_requests and (time.time() - start_time) < timeout:
-                print(f"Waiting for {len(pending_requests)} requests...")
-                time.sleep(0.5)
-            #await page.wait_for_timeout(manual_timeout)
+            await page.goto(url, wait_until="networkidle")
+            #await page.wait_for_timeout(timeout*1000)
+            max_wait = float(timeout)
+            poll_interval = 0.2
+            elapsed = 0.0
+
+            while pending_requests and elapsed < max_wait:
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+
         except:
             print("Timeout exceeded while waiting for networkidle.")
         finally:
