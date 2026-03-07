@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup, NavigableString
 import re
 import json
 import sys
+import time
 
 WINDOWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
@@ -13,7 +14,7 @@ def run_report(url):
     results = analyze_results(response)
     return results
 
-async def capture_traffic(url, manual_timeout=2000):
+async def capture_traffic(url, timeout=10):
     async with async_playwright() as p:
         # Launch browser and create a new page
         #browser = await p.chromium.launch(headless=True)
@@ -79,14 +80,32 @@ async def capture_traffic(url, manual_timeout=2000):
         #page.on("request", lambda r: print(f"{r.resource_type}: {r.url}"))
         #page.on("requestfailed", lambda request: print(f"FAILED: {request.url} - Error: {request.failure}"))
         
-        # Attach listener before navigation
+        # Track pending requests
+        pending_requests = set()
+
+        def on_request(request):
+            pending_requests.add(request.url)
+
+        def on_request_finished(request):
+            pending_requests.discard(request.url)
+
+        def on_request_failed(request):
+            pending_requests.discard(request.url)
+
+        page.on("request", on_request)
+        page.on("requestfinished", on_request_finished)
+        page.on("requestfailed", on_request_failed)
         page.on("response", handle_response)
 
         # Navigate and wait for the 'load' event (Complete)
         try:
             #print(f"Navigating to {url}...")
-            await page.goto(url, wait_until="networkidle", timeout=10000)
-            await page.wait_for_timeout(manual_timeout)
+            await page.goto(url, wait_until="networkidle", timeout=timeout*1000)
+            start_time = time.time()
+            while pending_requests and (time.time() - start_time) < timeout:
+                print(f"Waiting for {len(pending_requests)} requests...")
+                time.sleep(0.5)
+            #await page.wait_for_timeout(manual_timeout)
         except:
             print("Timeout exceeded while waiting for networkidle.")
         finally:
