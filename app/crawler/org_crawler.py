@@ -137,7 +137,11 @@ def print_results(results):
         print(f"Status: {item['status']}")
         print(f"Resource Type: {item['resource_type']}")
         print(f"Content Type: {item['content_type']}")
-        print(f"Body (first 100 chars): {item['body'][:100]}...")
+        if "application/json" in item['content_type']:
+            body = json.dumps(item['body'])
+        else:
+            body = item['body']
+        print(f"Body (first 100 chars): {body[:100]}...")
         print(f"Metadata (first 100 chars): {json.dumps(item['metadata'])[:100]}...")
         print(f"JSON (first 100 chars): {json.dumps(item['json'])[:100]}...")
         print(f"Parsed (first 100 chars): {json.dumps(item['parsed'])[:100]}...")
