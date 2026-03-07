@@ -36,6 +36,10 @@ async def capture_traffic(url):
                 if resource_type in ["document", "xhr", "fetch"] and ('text/html' in response_content_type or 'application/json' in response_content_type):
                     try:
                         body = await response.text()
+                        if 'application/json' in response_content_type:
+                            body = await response.json()
+                        else:
+                            body = await response.text()
                     except Exception:
                         body = "[Could not decode body (binary or redirected)]"
 
