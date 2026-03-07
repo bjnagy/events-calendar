@@ -6,16 +6,34 @@ import re
 import json
 import sys
 
+WINDOWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
 def run_report(url):
     response = asyncio.run(capture_traffic(url))
     results = analyze_results(response)
     return results
 
-async def capture_traffic(url):
+async def capture_traffic(url, manual_timeout=2000):
     async with async_playwright() as p:
         # Launch browser and create a new page
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+        #browser = await p.chromium.launch(headless=True)
+        #browser = await p.chromium.launch(headless=True, args=["--headless=new"])
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--disable-gpu", "--disable-software-rasterizer"]
+        )
+        context = await browser.new_context(
+            offline=False,
+            ignore_https_errors=True,
+            user_agent=WINDOWS_UA,
+            extra_http_headers={
+                "Sec-CH-UA-Platform": '"Windows"',
+                "Sec-CH-UA-Platform-Version": '"13.0.0"' #Win11
+            },
+            service_workers="block" #attempt to block service workers from intercepting requests for fulfillment
+        )
+
+        page = await context.new_page()
 
         # Storage for captured data
         captured_responses = []
@@ -41,7 +59,10 @@ async def capture_traffic(url):
                         else:
                             body = await response.text()
                     except Exception:
-                        body = "[Could not decode body (binary or redirected)]"
+                        if 'application/json' in response_content_type:
+                            body = await response.text()
+                        else:
+                            body = "[Could not decode body (binary or redirected)]"
 
                     captured_responses.append({
                         "url": url,
@@ -53,17 +74,24 @@ async def capture_traffic(url):
                     })
             except Exception as e:
                 pass # Ignore requests that disappear or fail before capture
-
+        
+        #network trace for debugging
+        #page.on("request", lambda r: print(f"{r.resource_type}: {r.url}"))
+        #page.on("requestfailed", lambda request: print(f"FAILED: {request.url} - Error: {request.failure}"))
+        
         # Attach listener before navigation
         page.on("response", handle_response)
 
         # Navigate and wait for the 'load' event (Complete)
         try:
-            print(f"Navigating to {url}...")
+            #print(f"Navigating to {url}...")
             await page.goto(url, wait_until="networkidle", timeout=10000)
+            await page.wait_for_timeout(manual_timeout)
         except:
             print("Timeout exceeded while waiting for networkidle.")
         finally:
+            #print(await page.evaluate("navigator.userAgent"))
+            await context.close()
             await browser.close()
         return captured_responses
     
