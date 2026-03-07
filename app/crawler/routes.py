@@ -1,7 +1,7 @@
 from flask import make_response, request
 
 from app.crawler import bp
-#from app.crawler import org-crawler
+from app.crawler import org_crawler
 
 @bp.route('/crawler/<path:url>')
 def crawl(url):
@@ -9,4 +9,5 @@ def crawl(url):
         full_url = "http://" + url
     else:
         full_url = url
-    return f"Retrieved URL: {full_url}"
+    #return f"Retrieved URL: {full_url}"
+    return org_crawler.run_report(full_url)
