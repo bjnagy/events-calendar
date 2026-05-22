@@ -6,13 +6,10 @@ import re
 import json
 import sys
 import time
+import datetime
+from rdflib import Graph, Literal, Namespace, RDF, URIRef, BNode
 
 WINDOWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-
-def run_report(url):
-    response = asyncio.run(capture_traffic(url))
-    results = analyze_results(response)
-    return results
 
 async def capture_traffic(url, timeout=2):
     async with async_playwright() as p:
@@ -180,8 +177,73 @@ def analyze_results(results):
 
     return results
 
-def print_results(results):
-    for idx, item in enumerate(results):
+def run_report(url):
+    report = {
+        'url': url,
+        'start_time': datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+    response = asyncio.run(capture_traffic(url))
+    results = analyze_results(response)
+    report['results'] = results
+    return report
+
+def export_report(report):
+
+    custom_context = {
+        "schema": "https://schema.org",
+        "prov": "http://w3.org",
+        "ext": "https://bjnagy.com",
+    }
+
+    g = Graph()
+    g.bind("schema", "https://schema.org/")
+    g.bind("prov", "http://w3.org/")
+    g.bind("ext", "https://bjnagy.com/")
+
+    ns = {prefix: Namespace(str(uri)) for prefix, uri in g.namespaces()}
+    custom_context = {prefix: str(uri) for prefix, uri in g.namespaces()}
+
+    crawl_node = BNode("crawlA")
+    g.add((crawl_node, ns["rdf"].type, ns["schema"].ConsumeAction))
+    g.add((crawl_node, ns["schema"].startTime, Literal(report['start_time'], datatype=ns["schema"].DateTime)))
+    g.add((crawl_node, ns["schema"].object, URIRef(report['url'])))
+
+    #print(report['results'])
+    for idx, result in enumerate(report['results']):
+        exchange_node = BNode(f"req{idx}")
+        g.add((exchange_node, ns["rdf"].type, ns["ext"].NetworkExchange))
+        g.add((exchange_node, ns["prov"].wasDerivedFrom, crawl_node))
+        g.add((exchange_node, ns["ext"].url, URIRef(result['url'])))
+        g.add((exchange_node, ns["ext"].httpVerb, Literal(result['method'])))
+        g.add((exchange_node, ns["ext"].statusCode, Literal(result['status'])))
+        g.add((exchange_node, ns["ext"].exchangeType, Literal(result['resource_type'])))
+        g.add((exchange_node, ns["schema"].encodingFormat, Literal(result['content_type'])))
+        g.add((exchange_node, ns["schema"].text, Literal(result['body'])))
+
+        parse_metadata = BNode(f"req{idx}_metadata")
+        g.add((parse_metadata, ns["rdf"].type, ns["ext"].AnalysisResult))
+        g.add((parse_metadata, ns["prov"].wasDerivedFrom, exchange_node))
+        g.add((parse_metadata, ns["ext"].parserType, Literal("containsMetadata")))
+        g.add((parse_metadata, ns["schema"].text, Literal(json.dumps(result['metadata']))))
+
+        parse_json = BNode(f"req{idx}_json")
+        g.add((parse_json, ns["rdf"].type, ns["ext"].AnalysisResult))
+        g.add((parse_json, ns["prov"].wasDerivedFrom, exchange_node))
+        g.add((parse_json, ns["ext"].parserType, Literal("containsJSON")))
+        g.add((parse_json, ns["schema"].text, Literal(json.dumps(result['json']))))
+
+        parse_eventcards = BNode(f"req{idx}_eventcards")
+        g.add((parse_eventcards, ns["rdf"].type, ns["ext"].AnalysisResult))
+        g.add((parse_eventcards, ns["prov"].wasDerivedFrom, exchange_node))
+        g.add((parse_eventcards, ns["ext"].parserType, Literal("containsEventcards")))
+        g.add((parse_eventcards, ns["schema"].text, Literal(json.dumps(result['parsed']))))
+
+    output = g.serialize(format="json-ld", context=custom_context, auto_compact=True, indent=2)
+    return output
+
+
+def print_results(report):
+    for idx, item in enumerate(report['results']):
         print(f"\n--- Request {idx+1} ---")
         print(f"URL: {item['url']}")
         print(f"Method: {item['method']}")
@@ -201,5 +263,9 @@ def print_results(results):
 # Run the script
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        results = run_report(sys.argv[1])
-        print_results(results)
+        report = run_report(sys.argv[1])
+        print_results(report)
+    if len(sys.argv) > 2:
+        if sys.argv[2] == 'export':
+            export = export_report(report)
+            print(export)

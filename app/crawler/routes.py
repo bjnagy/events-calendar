@@ -10,4 +10,4 @@ def crawl(url):
     else:
         full_url = url
     #return f"Retrieved URL: {full_url}"
-    return org_crawler.run_report(full_url)
+    return org_crawler.export_report(org_crawler.run_report(full_url))
