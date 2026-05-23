@@ -213,10 +213,13 @@ def export_report(report):
 
     #print(report['results'])
     for idx, result in enumerate(report['results']):
+        url_node = URIRef(result['url'])
+        g.add((url_node, ns["rdf"].type, ns["schema"].WebResource))
+
         exchange_node = BNode(f"req{idx}")
         g.add((exchange_node, ns["rdf"].type, ns["ext"].NetworkExchange))
         g.add((exchange_node, ns["prov"].wasDerivedFrom, crawl_node))
-        g.add((exchange_node, ns["ext"].url, URIRef(result['url'])))
+        g.add((exchange_node, ns["ext"].url, url_node))
         g.add((exchange_node, ns["ext"].httpVerb, Literal(result['method'])))
         g.add((exchange_node, ns["ext"].statusCode, Literal(result['status'])))
         g.add((exchange_node, ns["ext"].exchangeType, Literal(result['resource_type'])))
