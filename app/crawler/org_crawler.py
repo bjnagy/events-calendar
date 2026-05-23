@@ -208,6 +208,9 @@ def export_report(report):
     g.add((crawl_node, ns["schema"].startTime, Literal(report['start_time'], datatype=ns["schema"].DateTime)))
     g.add((crawl_node, ns["schema"].object, URIRef(report['url'])))
 
+    url_node = URIRef(report['url'])
+    g.add((url_node, ns["rdf"].type, ns["schema"].WebResource))
+
     #print(report['results'])
     for idx, result in enumerate(report['results']):
         exchange_node = BNode(f"req{idx}")
